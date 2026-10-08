@@ -158,6 +158,25 @@ new guest experiments, fuzzing or real failure injection are enabled.
 Daily local backups remain unchanged; encrypted off-server backups
 stay deferred.
 
+## v0.9 Operational Reliability (proposed)
+
+After **reviewed release approval**, a minimal hourly read-only health timer
+checks Dagu, existing backup/recovery/deployment timers, disk space,
+latest local backup freshness and stale interrupted artifacts. It stores a
+private JSON snapshot and emits **local systemd journal warnings on status
+changes**. No external alert service or credentials are configured; it
+does not restart services or execute guests.
+
+A separate **manual, dry-run-first** tool previews cleanup of only old
+**successful synthetic fault-drill** data (older than 30 days; always
+retain at least 20 recent completed successful drills). Apply requires
+two explicit flags and never touches actual guest evidence, failed runs,
+research data or backups.
+
+See [Operational Reliability](docs/OPERATIONAL_RELIABILITY.md).
+The original daily local backup remains enabled. Encrypted offsite
+backups and risky research remain deferred.
+
 ## Useful commands
 
 ```bash
