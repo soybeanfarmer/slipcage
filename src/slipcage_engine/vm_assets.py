@@ -103,9 +103,15 @@ def _opened_regular_digest(
         fd = os.open(name, _FILE_FLAGS, dir_fd=directory_fd)
     except OSError as exc:
         raise VMAssetError(f"Artifact {name} missing or unsafe") from exc
+    # An opened directory cannot be wrapped by fdopen(..., "rb").
+    # Reject nonregular descriptors first, closing them before returning.
+    first = os.fstat(fd)
+    if not stat.S_ISREG(first.st_mode):
+        os.close(fd)
+        raise VMAssetError(f"Artifact {name} must be a single-link regular file")
     with os.fdopen(fd, "rb") as stream:
         before = os.fstat(stream.fileno())
-        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+        if before.st_nlink != 1:
             raise VMAssetError(f"Artifact {name} must be a single-link regular file")
         if stat.S_IMODE(before.st_mode) & 0o077:
             raise VMAssetError(f"Artifact {name} must be private (0600)")
