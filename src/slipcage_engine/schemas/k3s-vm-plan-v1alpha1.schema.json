@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://slipcage.dev/schemas/k3s-vm-plan-v1alpha1.schema.json",
+  "title": "Non-executable pinned K3s VM intent and resource design (SC-12)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "api_version",
+    "kind",
+    "status",
+    "metadata",
+    "provenance",
+    "runtime",
+    "software",
+    "artifacts",
+    "guest",
+    "network",
+    "safety"
+  ],
+  "properties": {
+    "api_version": {
+      "const": "slipcage.dev/vm-plan/v1alpha1"
+    },
+    "kind": {
+      "const": "K3sVMPlan"
+    },
+    "status": {
+      "const": "design_only"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^slipcage-k3s-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
+          "maxLength": 76
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pin_status",
+        "note"
+      ],
+      "properties": {
+        "pin_status": {
+          "enum": [
+            "synthetic_fixture",
+            "operator_supplied_unverified"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "pattern": "^[^\\r\\n]*$"
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture",
+        "hypervisor",
+        "acceleration",
+        "qemu_version",
+        "machine_type",
+        "cpu_model"
+      ],
+      "properties": {
+        "architecture": {
+          "const": "x86_64"
+        },
+        "hypervisor": {
+          "const": "qemu"
+        },
+        "acceleration": {
+          "const": "kvm"
+        },
+        "qemu_version": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*\\.[0-9]+\\.[0-9]+$",
+          "maxLength": 32
+        },
+        "machine_type": {
+          "type": "string",
+          "pattern": "^pc-q35-[1-9][0-9]*\\.[0-9]+$",
+          "maxLength": 40
+        },
+        "cpu_model": {
+          "const": "x86-64-v2"
+        }
+      }
+    },
+    "software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guest_kernel_release",
+        "k3s_version",
+        "cni"
+      ],
+      "properties": {
+        "guest_kernel_release": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 70,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
+        },
+        "k3s_version": {
+          "type": "string",
+          "pattern": "^v[1-9][0-9]*\\.[0-9]+\\.[0-9]+\\+k3s[1-9][0-9]*$",
+          "maxLength": 45
+        },
+        "cni": {
+          "const": "flannel"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os_image_sha256",
+        "kernel_sha256",
+        "k3s_binary_sha256",
+        "cni_assets_sha256",
+        "container_images_sha256"
+      ],
+      "properties": {
+        "os_image_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "kernel_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "k3s_binary_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "cni_assets_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "container_images_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "guest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vcpu",
+        "ram_mib",
+        "disk_gib",
+        "max_runtime_seconds",
+        "max_parallel_vms",
+        "ephemeral_overlay"
+      ],
+      "properties": {
+        "vcpu": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 4
+        },
+        "ram_mib": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 8192,
+          "multipleOf": 1024
+        },
+        "disk_gib": {
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 48
+        },
+        "max_runtime_seconds": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 1800
+        },
+        "max_parallel_vms": {
+          "const": 1
+        },
+        "ephemeral_overlay": {
+          "const": true
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design",
+        "host_bridging",
+        "public_egress",
+        "provider_metadata_access",
+        "guest_image_supply",
+        "policy_enforcement_proven"
+      ],
+      "properties": {
+        "design": {
+          "const": "guest_internal_only"
+        },
+        "host_bridging": {
+          "const": false
+        },
+        "public_egress": {
+          "const": false
+        },
+        "provider_metadata_access": {
+          "const": false
+        },
+        "guest_image_supply": {
+          "const": "preloaded_offline"
+        },
+        "policy_enforcement_proven": {
+          "const": false
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved_workload",
+        "arbitrary_commands",
+        "host_mounts",
+        "provider_testing",
+        "vm_execution_enabled",
+        "network_configuration_enabled"
+      ],
+      "properties": {
+        "approved_workload": {
+          "const": "benign_rbac_only"
+        },
+        "arbitrary_commands": {
+          "const": false
+        },
+        "host_mounts": {
+          "const": false
+        },
+        "provider_testing": {
+          "const": false
+        },
+        "vm_execution_enabled": {
+          "const": false
+        },
+        "network_configuration_enabled": {
+          "const": false
+        }
+      }
+    }
+  }
+}

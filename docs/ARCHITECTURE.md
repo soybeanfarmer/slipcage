@@ -117,6 +117,15 @@ Proposed minimum evidence bundle: versioned run manifest, experiment spec digest
 
 Revisit these choices based on measured requirements. Do **not** deploy Slipcage itself on Kubernetes merely to test Kubernetes.
 
+### SC-12 — pinned VM plan is only a declaration
+
+The proposed K3s VM design has a strict, offline-only JSON validation module
+and a conservative **operator-reported** resource estimator. It does not
+validate actual image hashes, open `/dev/kvm`, instantiate a QEMU process,
+configure a bridge, boot K3s, or authorize workloads. Its sample data is
+synthetic; genuine artifact pins and live capacity/permission proof remain
+outstanding. See [SC-12 feasibility and safety gate](K3S_VM_FEASIBILITY.md).
+
 ## 7. Validation ladder
 
 1. **Offline CI:** specification, assertion state, comparator and evidence fixtures; existing tests remain green.

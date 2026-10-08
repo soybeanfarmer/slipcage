@@ -1,0 +1,9 @@
+{
+  "api_version": "slipcage.dev/host-inventory/v1alpha1",
+  "source": "operator_reported_unverified",
+  "cpu_threads": 6,
+  "memory_mib": 12288,
+  "free_disk_gib": 48,
+  "kvm_status": "unknown",
+  "provider_authorization": "unknown"
+}

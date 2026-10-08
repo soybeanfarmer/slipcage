@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://slipcage.dev/schemas/operator-host-inventory-v1alpha1.schema.json",
+  "title": "Non-attested operator-reported VPS inventory; not authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "api_version",
+    "source",
+    "cpu_threads",
+    "memory_mib",
+    "free_disk_gib",
+    "kvm_status",
+    "provider_authorization"
+  ],
+  "properties": {
+    "api_version": {
+      "const": "slipcage.dev/host-inventory/v1alpha1"
+    },
+    "source": {
+      "const": "operator_reported_unverified"
+    },
+    "cpu_threads": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 512
+    },
+    "memory_mib": {
+      "type": "integer",
+      "minimum": 256,
+      "maximum": 1048576
+    },
+    "free_disk_gib": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1048576
+    },
+    "kvm_status": {
+      "enum": [
+        "unknown",
+        "not_ready",
+        "reported_ready"
+      ]
+    },
+    "provider_authorization": {
+      "enum": [
+        "unknown",
+        "not_authorized",
+        "operator_reports_permission"
+      ]
+    }
+  }
+}
