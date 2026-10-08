@@ -1,10 +1,12 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / 'app' / 'isolab.py'
+sys.path.insert(0, str(MODULE_PATH.parent))
 spec = importlib.util.spec_from_file_location('isolab', MODULE_PATH)
 isolab = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(isolab)

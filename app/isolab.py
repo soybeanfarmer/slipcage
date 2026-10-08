@@ -261,8 +261,8 @@ def report(db: str, output: str, candidate_id: str) -> int:
         f"- Reference URL: {html.escape(row['reference_url'], quote=True)}\n"
         f"- Date reviewed: `{utc_now()}`\n\n" +
         intelligence.report_section(conn, candidate_id) +
-        "## Published summary\n\n" + safe(row["title"]) + "\n\n"
-        "## Published technical description\n\n" + safe(row["summary"][:6000]) + "\n\n"
+        "## Published summary\n\n" + safe(row["title"]) + "\n\n" +
+        "## Published technical description\n\n" + safe(row["summary"][:6000]) + "\n\n" +
         "## Next actions (human reviewed)\n\n"
         "- Confirm scope and affected versions in upstream source.\n"
         "- Read upstream patch/reproducer documentation; do not execute untrusted PoC code.\n"
