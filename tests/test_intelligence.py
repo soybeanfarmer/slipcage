@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 import importlib.util
 import json
+import sqlite3
 from pathlib import Path
 import sys
 import tempfile
@@ -132,6 +133,31 @@ class IntelligenceTests(unittest.TestCase):
         self.assertIn("historical", body)
         self.assertIn("Do not infer exploitability", body)
         self.assertIn("No vulnerability has been reproduced", body)
+
+    def test_migrate_legacy_sqlite_database_without_erasing_candidates(self):
+        """Simulate v0.1 tables, then open them using the additive v0.2 schema."""
+        self.conn.close()
+        legacy = sqlite3.connect(self.db)
+        legacy.executescript(isolab.SCHEMA.split("CREATE INDEX IF NOT EXISTS")[0])
+        legacy.execute("""INSERT INTO candidates
+            (id,source,source_id,cve,title,summary,reference_url,track,score,
+             published,updated,status,discovered_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            ("a" * 64, "github", "GHSA-legacy", "CVE-2019-19921",
+             "runc procfs bug", "old advisory", "https://github.com/advisories/example",
+             "container", 80, "2019-12-01", "2026-10-08", "reviewed",
+             "2026-10-08T00:00:00+00:00"))
+        legacy.commit()
+        legacy.close()
+        self.conn = isolab.connect(self.db)
+        self.assertEqual(self.conn.execute(
+            "SELECT status FROM candidates WHERE source_id='GHSA-legacy'"
+        ).fetchone()[0], "reviewed")
+        with self.conn:
+            intelligence.analyze(self.conn, NOW)
+        self.assertIsNotNone(self.conn.execute(
+            "SELECT * FROM candidate_intelligence WHERE candidate_id=?",
+            ("a" * 64,)).fetchone())
 
 
 if __name__ == "__main__":
