@@ -430,6 +430,28 @@
         group: root
         mode: '0644'
 
+    - name: Install deterministic fixed arithmetic and hash guest builder
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/build-experiment-guest.sh"
+        dest: /usr/local/lib/slipcage/build-experiment-guest
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Build inert arithmetic and SHA-256 Linux guest image
+      ansible.builtin.command:
+        argv:
+          - /usr/local/lib/slipcage/build-experiment-guest
+        creates: /usr/local/lib/slipcage/experiment-v1.cpio.gz
+
+    - name: Install manual controlled experiment systemd template
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-experiment@.service"
+        dest: /etc/systemd/system/slipcage-experiment@.service
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Restrict offsite-credential directory
       ansible.builtin.file:
         path: /etc/slipcage
