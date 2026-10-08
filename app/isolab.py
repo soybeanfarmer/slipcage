@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import intelligence
+import recovery
 
 MATCHERS = {
     "hypervisor": re.compile(r"\b(qemu|kvm|virtualbox|hyper[- ]v)\b", re.I),
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS candidates (
  UNIQUE(source, source_id)
 );
 CREATE INDEX IF NOT EXISTS candidates_status_score ON candidates(status, score DESC);
-""" + intelligence.SCHEMA
+""" + intelligence.SCHEMA + recovery.SCHEMA
 
 
 def utc_now() -> str:
@@ -214,33 +215,52 @@ def analyze(db: str) -> int:
 
 
 def enqueue(db: str, workflow: str, max_outstanding: int) -> int:
-    if not (1 <= max_outstanding <= 100):
-        raise ValueError("max_outstanding must be between 1 and 100")
     conn = connect(db)
-    queued = conn.execute("SELECT count(*) FROM candidates WHERE status='queued'").fetchone()[0]
-    slots = max(0, max_outstanding - queued)
-    jobs = conn.execute("SELECT id FROM candidates WHERE status='pending' ORDER BY score DESC, discovered_at LIMIT ?", (slots,)).fetchall()
-    submitted = 0
-    for job in jobs:
-        candidate_id = job["id"]
-        # No feed data or dynamic commands enter the subprocess: only a hashed ID.
-        with conn:
-            claimed = conn.execute("UPDATE candidates SET status='queued', queued_at=? WHERE id=? AND status='pending'", (utc_now(), candidate_id)).rowcount
-        if not claimed:
-            continue
-        try:
-            subprocess.run(["/usr/local/bin/dagu", "enqueue", workflow, "--", f"candidate_id={candidate_id}"],
-                           check=True, timeout=20, capture_output=True, text=True)
-            submitted += 1
-        except (subprocess.CalledProcessError, TimeoutError, OSError) as exc:
-            with conn:
-                conn.execute("UPDATE candidates SET status='pending',queued_at=NULL WHERE id=? AND status='queued'", (candidate_id,))
-            print(f"WARNING: enqueue failed for {candidate_id[:12]}: {exc}", file=sys.stderr)
-    print(f"enqueued={submitted}, previously_outstanding={queued}")
+    try:
+        result = recovery.enqueue(conn, workflow, max_outstanding)
+        print(f"enqueued={result['enqueued']} delivery_failures={result['delivery_failures']}")
+    finally:
+        conn.close()
+    return 0 if result['delivery_failures'] == 0 else 1
+
+
+def recover(db: str, workflow: str, max_outstanding: int) -> int:
+    conn = connect(db)
+    try:
+        state = recovery.reconcile(conn)
+        result = recovery.enqueue(conn, workflow, max_outstanding)
+        print(json.dumps({"reconciliation": state, "delivery": result}, sort_keys=True))
+    finally:
+        conn.close()
+    # Legacy outstanding work and ambiguous live workers require manual inspection,
+    # not blind retry. The command succeeds so the timer can continue checking.
+    return 0 if result["delivery_failures"] == 0 else 1
+
+
+def run_review(db: str, output: str, candidate_id: str, attempt: str) -> int:
+    if not ID_PATTERN.fullmatch(candidate_id):
+        raise ValueError("Candidate ID must be lowercase SHA-256 hex")
+    conn = connect(db)
+    try:
+        if not recovery.start(conn, candidate_id, attempt):
+            print("obsolete or already claimed review attempt; skipping")
+            return 0
+    finally:
+        conn.close()
+    # Idempotent filename: if we crash after writing but before marking reviewed,
+    # a subsequent fenced attempt replaces the same artifact.
+    report(db, output, candidate_id, commit_status=False, stable_name=True)
+    conn = connect(db)
+    try:
+        if not recovery.finish(conn, candidate_id, attempt):
+            raise ValueError("Review completion lost attempt ownership")
+    finally:
+        conn.close()
     return 0
 
 
-def report(db: str, output: str, candidate_id: str) -> int:
+def report(db: str, output: str, candidate_id: str, *,
+           commit_status: bool = True, stable_name: bool = False) -> int:
     if not ID_PATTERN.fullmatch(candidate_id):
         raise ValueError("Candidate IDs must be 64 lower-case SHA-256 hex characters")
     conn = connect(db)
@@ -250,7 +270,7 @@ def report(db: str, output: str, candidate_id: str) -> int:
     out = Path(output)
     out.mkdir(mode=0o700, parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    target = out / f"candidate-{stamp}-{candidate_id[:12]}.md"
+    target = (out / f"candidate-{candidate_id}.md") if stable_name else (out / f"candidate-{stamp}-{candidate_id[:12]}.md")
     # Indent arbitrary remote title/summary as literal blockquote text, no HTML allowed.
     safe = lambda s: "\n".join("> " + html.escape(ln, quote=True) for ln in (s or "").splitlines()[:70])
     text = (
@@ -275,8 +295,9 @@ def report(db: str, output: str, candidate_id: str) -> int:
         os.chmod(tmp, 0o600)
         f.write(text)
     os.replace(tmp, target)
-    with conn:
-        conn.execute("UPDATE candidates SET status='reviewed',reviewed_at=? WHERE id=?", (utc_now(), candidate_id))
+    if commit_status:
+        with conn:
+            conn.execute("UPDATE candidates SET status='reviewed',reviewed_at=? WHERE id=?", (utc_now(), candidate_id))
     print(f"report={target}")
     return 0
 
@@ -301,12 +322,19 @@ def status(db: str) -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
-    for name in ("sync", "analyze", "enqueue", "report", "status"):
+    for name in ("sync", "analyze", "enqueue", "recover", "run-review", "report", "status"):
         sub.add_parser(name).add_argument("--db", required=True)
     sub.add_parser("smoke").add_argument("--output", required=True)
     enq = sub.choices["enqueue"]
     enq.add_argument("--workflow", required=True)
     enq.add_argument("--max-outstanding", type=int, default=3)
+    rec = sub.choices["recover"]
+    rec.add_argument("--workflow", required=True)
+    rec.add_argument("--max-outstanding", type=int, default=3)
+    worker = sub.choices["run-review"]
+    worker.add_argument("--output", required=True)
+    worker.add_argument("--id", required=True)
+    worker.add_argument("--attempt", required=True)
     rep = sub.choices["report"]
     rep.add_argument("--output", required=True)
     rep.add_argument("--id", required=True)
@@ -318,6 +346,10 @@ def main() -> int:
             return analyze(args.db)
         if args.command == "enqueue":
             return enqueue(args.db, args.workflow, args.max_outstanding)
+        if args.command == "recover":
+            return recover(args.db, args.workflow, args.max_outstanding)
+        if args.command == "run-review":
+            return run_review(args.db, args.output, args.id, args.attempt)
         if args.command == "report":
             return report(args.db, args.output, args.id)
         if args.command == "status":

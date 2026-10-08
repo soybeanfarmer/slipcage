@@ -1,0 +1,12 @@
+[Unit]
+Description=Reconcile Slipcage review queue after reboot and every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnCalendar=*-*-* *:0/15:00
+RandomizedDelaySec=1min
+Persistent=true
+Unit=slipcage-recover.service
+
+[Install]
+WantedBy=timers.target

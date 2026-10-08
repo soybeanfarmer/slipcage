@@ -47,7 +47,9 @@ class LabTests(unittest.TestCase):
                 cmd = sub.call_args.args[0]
                 self.assertEqual(cmd[0:3], ['/usr/local/bin/dagu','enqueue','/tmp/review-candidate.yaml'])
                 self.assertFalse('shell' in sub.call_args.kwargs)
-                self.assertTrue(cmd[-1].startswith('candidate_id='))
+                self.assertTrue(cmd[-2].startswith('candidate_id='))
+                self.assertTrue(cmd[-1].startswith('attempt='))
+                self.assertEqual(len(cmd[-1].split('=', 1)[1]), 32)
 
     def test_bad_id_rejected(self):
         with self.assertRaises(ValueError):

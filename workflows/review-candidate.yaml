@@ -5,10 +5,13 @@ params:
   - name: candidate_id
     type: string
     required: true
+  - name: attempt
+    type: string
+    required: true
 steps:
   - id: report
     # Structured arguments avoid evaluating candidate IDs in a shell.
     action: exec
     with:
       command: /usr/local/bin/slipcage-guard
-      args: ["run", "/usr/bin/python3", "/opt/isolab/app/isolab.py", "report", "--db", "/srv/isolab/research.sqlite3", "--output", "/srv/isolab/reports", "--id", "${params.candidate_id}"]
+      args: ["run", "/usr/bin/python3", "/opt/isolab/app/isolab.py", "run-review", "--db", "/srv/isolab/research.sqlite3", "--output", "/srv/isolab/reports", "--id", "${params.candidate_id}", "--attempt", "${params.attempt}"]

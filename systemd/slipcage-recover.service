@@ -1,0 +1,25 @@
+[Unit]
+Description=Reconcile abandoned Slipcage advisory reviews
+After=isolab-dagu.service
+Wants=isolab-dagu.service
+
+[Service]
+Type=oneshot
+User=isolab
+Group=isolab
+WorkingDirectory=/var/lib/dagu
+Environment=DAGU_HOME=/var/lib/dagu
+Environment=DAGU_DAGS_DIR=/var/lib/dagu/dags
+Environment=DAGU_DATA_DIR=/var/lib/dagu/data
+Environment=DAGU_LOG_DIR=/var/lib/dagu/logs
+UMask=0077
+ExecStart=/usr/local/bin/slipcage-guard run /usr/bin/python3 /opt/isolab/app/isolab.py recover --db /srv/isolab/research.sqlite3 --workflow /var/lib/dagu/dags/review-candidate.yaml --max-outstanding 3
+TimeoutStartSec=2min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/isolab /var/lib/dagu
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
