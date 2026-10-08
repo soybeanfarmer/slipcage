@@ -81,7 +81,7 @@ def send_webhook(url: str, payload: dict) -> None:
     class NoRedirect(request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
             return None
-    client = request.build_opener(NoRedirect)
+    client = request.build_opener(request.ProxyHandler({}), NoRedirect)
     body = json.dumps(payload, sort_keys=True).encode("utf-8")
     req = request.Request(url, data=body, headers={
         "Content-Type": "application/json", "User-Agent": "Slipcage-health/0.10"
