@@ -202,8 +202,7 @@ class ControlledExperimentTests(unittest.TestCase):
         self.assertNotIn("RuntimeMaxSec=", unit)
         self.assertIn("Build inert arithmetic and SHA-256 Linux guest image", playbook)
         section = playbook.split("- name: Install manual controlled experiment systemd template")[1]
-        self.assertNotIn("enabled: true", section.split(
-            "- name: Restrict offsite-credential directory")[0])
+        self.assertNotIn("enabled: true", section.split("\n    - name: ", 1)[0])
 
 
 if __name__ == "__main__":
