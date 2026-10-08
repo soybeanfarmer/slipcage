@@ -10,7 +10,6 @@ Group=slipcage-vmprobe
 SupplementaryGroups=kvm
 ExecStart=/usr/bin/python3 /usr/local/lib/slipcage/kvm-probe.py --smoke
 TimeoutStartSec=30s
-RuntimeMaxSec=35s
 UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=strict
