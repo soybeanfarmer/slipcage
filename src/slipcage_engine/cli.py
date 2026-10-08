@@ -22,6 +22,10 @@ from .vm_provenance import VMProvenanceError, verify_provenance
 from .vm_host_readiness import VMHostReadinessError, load_host_snapshot, assess_host_snapshot
 from .vm_host_observe import HostObservationError, inspect_local_host
 from .vm_qemu_blueprint import QemuBlueprintError, build_qemu_blueprint
+from .vm_reservation import (
+    ReservationError, QuarantineReason, stage_local_reservation,
+    inspect_local_reservation, quarantine_local_reservation,
+)
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -163,6 +167,33 @@ def build_parser() -> argparse.ArgumentParser:
     supervisor_pair.add_argument("--candidate-scenario", required=True, choices=[s.value for s in SupervisionScenario])
     supervisor_pair.add_argument("--json", action="store_true")
 
+    staged = commands.add_parser(
+        "stage-vm-reservation",
+        help="LOCAL DEVELOPMENT ONLY: create one permanent private intent slot; NO VM/overlay",
+    )
+    staged.add_argument("file", help="Strict nonsynthetic SC-12 plan")
+    staged.add_argument("--assets-dir", required=True, help="Private SC-13b1 asset directory")
+    staged.add_argument("--root", required=True, help="Existing trusted private scratch root; NOT VPS by default")
+    staged.add_argument("--attempt", required=True, help="Simple bounded attempt label")
+    staged.add_argument("--json", action="store_true")
+
+    check_stage = commands.add_parser(
+        "inspect-vm-reservation",
+        help="Read-only validation of an existing private local VM intent slot",
+    )
+    check_stage.add_argument("root", help="Existing private scratch root")
+    check_stage.add_argument("--json", action="store_true")
+
+    quarantine_stage = commands.add_parser(
+        "quarantine-vm-reservation",
+        help="Append permanent local quarantine marker; never execute or delete anything",
+    )
+    quarantine_stage.add_argument("root", help="Existing private scratch root")
+    quarantine_stage.add_argument("--attempt", required=True)
+    quarantine_stage.add_argument("--intent-sha256", required=True)
+    quarantine_stage.add_argument("--reason", required=True, choices=[v.value for v in QuarantineReason])
+    quarantine_stage.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -178,7 +209,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command in ("simulate-vm-supervision", "simulate-vm-supervision-pair"):
+        if args.command == "stage-vm-reservation":
+            vm_definition = load_vm_plan(args.file)
+            asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
+            vm_record = stage_local_reservation(
+                vm_definition, asset_preflight, args.root, args.attempt,
+            )
+        elif args.command == "inspect-vm-reservation":
+            vm_record = inspect_local_reservation(args.root)
+        elif args.command == "quarantine-vm-reservation":
+            vm_record = quarantine_local_reservation(
+                args.root, attempt_id=args.attempt,
+                expected_intent_sha256=args.intent_sha256,
+                reason=QuarantineReason(args.reason),
+            )
+        elif args.command in ("simulate-vm-supervision", "simulate-vm-supervision-pair"):
             vm_definition = load_vm_plan(args.file)
             asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
             if args.command == "simulate-vm-supervision":
@@ -244,9 +289,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command in ("stage-vm-reservation", "inspect-vm-reservation", "quarantine-vm-reservation"):
+        if args.json:
+            print(vm_record.canonical_json().decode("ascii"))
+        else:
+            print("PRIVATE LOCAL INTENT RECORD ONLY; "
+                  f"status={'quarantined' if vm_record.quarantined else 'staged_no_execution'}; "
+                  "no overlay, process, or host execution authorization")
+        return 5 if vm_record.quarantined else 0
 
     if args.command == "simulate-vm-supervision":
         if args.json:
