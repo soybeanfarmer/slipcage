@@ -110,6 +110,22 @@ See [Guest lifecycle operations and safety boundaries](docs/GUEST_LIFECYCLE.md).
 existing daily local SQLite/report backups remain enabled, but do not
 include disposable guest-cycle logs.
 
+## v0.6 Controlled Experiment Foundation (proposed)
+
+Introduces a **fixed, offline, benign arithmetic and SHA-256 known-answer
+workload inside Slipcage's disposable nested Linux guest**. The host
+verifies exact guest evidence and QEMU shutdown, captures CPU time and peak
+QEMU resident memory, and reuses the existing bounded lifecycle cleanup,
+single-run concurrency guard, and private per-cycle logs.
+
+Only manual, sequential tests are supported (up to 3 cycles). No fuzzing,
+scanning, dynamic guest scripts, Dagu experiment jobs, or autonomous VM
+execution is activated. [Controlled Experiment Operations](docs/CONTROLLED_EXPERIMENTS.md).
+
+Your existing local backups remain unchanged. Encrypted off-server backup
+setup remains deferred, and these disposable experiment logs are not
+included in the daily backups.
+
 ## Useful commands
 
 ```bash

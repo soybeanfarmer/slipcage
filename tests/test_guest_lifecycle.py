@@ -152,7 +152,7 @@ class GuestLifecycleTests(unittest.TestCase):
 
     def test_existing_kvm_boot_is_fixed_and_not_general_payload(self):
         source = PATH.read_text()
-        self.assertIn('[sys.executable, str(probe), "--boot"]', source)
+        self.assertIn('"--experiment" if profile == "experiment" else "--boot"', source)
         self.assertIn("start_new_session=True", source)
         self.assertIn("os.killpg(child.pid, signal.SIGKILL)", source)
         self.assertNotIn("shell=True", source)
