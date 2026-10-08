@@ -121,7 +121,22 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(self.state(), "pending")
         self.assertEqual(self.conn.execute(
             "SELECT attempts FROM review_attempts WHERE candidate_id=?", (ID,)
+        ).fetchone()[0], 0)
+
+    def test_ambiguous_timeout_consumes_attempt_and_keeps_old_token_inert(self):
+        def uncertain(*_args, **_kw):
+            raise recovery.subprocess.TimeoutExpired(cmd="dagu", timeout=20)
+        result = recovery.enqueue(self.conn, "workflow.yaml", 3, runner=uncertain, now=NOW)
+        self.assertEqual(result["delivery_failures"], 1)
+        self.assertEqual(self.state(), "pending")
+        self.assertEqual(self.conn.execute(
+            "SELECT attempts FROM review_attempts WHERE candidate_id=?", (ID,)
         ).fetchone()[0], 1)
+        previous = self.conn.execute(
+            "SELECT token FROM review_attempts WHERE candidate_id=?", (ID,)
+        ).fetchone()[0]
+        next_attempt = recovery.claim_next(self.conn, 3, NOW + timedelta(minutes=1))
+        self.assertNotEqual(previous, next_attempt[1])
 
     def test_worker_completes_once_and_generates_one_stable_report(self):
         captured = []
