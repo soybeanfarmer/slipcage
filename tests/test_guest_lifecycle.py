@@ -33,7 +33,7 @@ class GuestLifecycleTests(unittest.TestCase):
             "import json\n"
             f"print(json.dumps({{'guest_booted': {passed}, 'exit_code': "
             f"{0 if passed else 1}, 'network': 'disabled', "
-            "'persistent_guest_disk': False}}))\n"
+            "'persistent_guest_disk': False}))\n"
             f"raise SystemExit({0 if passed else 2})\n", encoding="utf-8"
         )
         return self.probe
