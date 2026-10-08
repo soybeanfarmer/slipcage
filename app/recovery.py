@@ -49,7 +49,8 @@ def elapsed(value: str | None, now: datetime) -> timedelta | None:
 
 def boot_id() -> str | None:
     try:
-        return open("/proc/sys/kernel/random/boot_id", encoding="ascii").read().strip()
+        with open("/proc/sys/kernel/random/boot_id", encoding="ascii") as source:
+            return source.read().strip()
     except OSError:
         return None
 
@@ -57,7 +58,8 @@ def boot_id() -> str | None:
 def process_start(pid: int) -> str | None:
     """Linux /proc PID+start tick prevents PID-reuse false positives."""
     try:
-        raw = open(f"/proc/{pid}/stat", encoding="ascii").read()
+        with open(f"/proc/{pid}/stat", encoding="ascii") as source:
+            raw = source.read()
         fields = raw.rsplit(") ", 1)[1].split()
         # Field 22 (starttime), where the fields following comm begin at #3.
         return fields[19]
