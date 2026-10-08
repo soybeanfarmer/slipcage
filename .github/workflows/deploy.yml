@@ -194,6 +194,9 @@ jobs:
               assert test_sample.returncode == 2
               assert not test_sample.stdout
           PYCODE
+          # SC-13b2 checks use ephemeral test keys and synthetic snapshots only.
+          # No real publishers, VPS probes or guests are contacted.
+          python -m unittest discover -s tests -p 'test_vm_provenance_host.py' -q
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

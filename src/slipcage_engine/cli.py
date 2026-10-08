@@ -18,6 +18,8 @@ from .workflow import DemoError, create_fixture_demo, verify_fixture_demo
 from .specification import SpecValidationError, load_spec
 from .vm_plan import VMPlanError, assess_vm_plan, load_vm_plan, load_host_inventory
 from .vm_assets import VMAssetError, verify_local_vm_assets
+from .vm_provenance import VMProvenanceError, verify_provenance
+from .vm_host_readiness import VMHostReadinessError, load_host_snapshot, assess_host_snapshot
 from .vm_lifecycle import (
     VMLifecycleError, VMSimulationScenario, VMFinalState, VMFailureReason,
     simulate_vm_lifecycle, simulate_sequential_pair,
@@ -106,6 +108,20 @@ def build_parser() -> argparse.ArgumentParser:
     asset_check.add_argument("--directory", required=True, help="Trusted private directory with five fixed files")
     asset_check.add_argument("--json", action="store_true", help="Machine-readable local byte-integrity result")
 
+    provenance = commands.add_parser(
+        "verify-vm-provenance", help="Verify offline detached Ed25519 statement with an OUT-OF-BAND trusted key"
+    )
+    provenance.add_argument("file", help="Local nonsynthetic SC-12 VM plan")
+    provenance.add_argument("--statement", required=True, help="Canonical JSON plan-bound provenance statement")
+    provenance.add_argument("--signature", required=True, help="Raw detached Ed25519 signature (64 bytes)")
+    provenance.add_argument("--public-key", required=True, help="Independently authenticated raw Ed25519 public key (32 bytes)")
+    provenance.add_argument("--json", action="store_true")
+
+    readiness = commands.add_parser("assess-vm-host", help="Evaluate UNVERIFIED operator-reported host numbers, no probing")
+    readiness.add_argument("file", help="Local SC-12 VM plan")
+    readiness.add_argument("--snapshot", required=True, help="Operator-supplied host snapshot JSON")
+    readiness.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -121,7 +137,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "verify-vm-artifacts":
+        if args.command == "verify-vm-provenance":
+            vm_definition = load_vm_plan(args.file)
+            provenance_result = verify_provenance(
+                vm_definition, args.statement, args.signature, args.public_key,
+            )
+        elif args.command == "assess-vm-host":
+            vm_definition = load_vm_plan(args.file)
+            host_result = assess_host_snapshot(vm_definition, load_host_snapshot(args.snapshot))
+        elif args.command == "verify-vm-artifacts":
             vm_definition = load_vm_plan(args.file)
             asset_report = verify_local_vm_assets(vm_definition, args.directory)
         elif args.command in ("simulate-vm-lifecycle", "simulate-vm-pair"):
@@ -159,9 +183,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "verify-vm-provenance":
+        if args.json:
+            print(provenance_result.canonical_json().decode("ascii"))
+        else:
+            print("DETACHED SIGNATURE VERIFIED AGAINST SUPPLIED KEY ONLY; "
+                  "origin_verified=false; execution_authorized=false")
+        return 0
+
+    if args.command == "assess-vm-host":
+        if args.json:
+            print(host_result.canonical_json().decode("ascii"))
+        else:
+            print("OPERATOR-REPORTED HOST SNAPSHOT ONLY; "
+                  f"capacity={host_result.capacity_assessment}; "
+                  "independent_host_verification=false; execution_authorized=false")
+        return 0
 
     if args.command == "verify-vm-artifacts":
         if args.json:

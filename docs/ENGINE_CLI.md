@@ -368,6 +368,17 @@ record `execution_authorized: false`, `vm_launched: false` and
 only; Ansible does not install it on the VPS. See
 [SC-13b1 limits and live VM prerequisites](VM_ASSET_PREFLIGHT.md).
 
+## SC-13b2 — Offline signed-statement and host snapshot checks
+
+Two read-only commands add prerequisites for any future disposable VM:
+
+~~~bash
+slipcage verify-vm-provenance /private/operator-plan.json --statement /private/statement.json --signature /private/statement.sig --public-key /private/trusted-key.raw --json
+slipcage assess-vm-host /private/operator-plan.json --snapshot /private/host-snapshot.json --json
+~~~
+
+The first verifies an Ed25519 signature *against a supplied raw public key* bound to all five asset digests and the plan. **Publisher key identity must be trusted independently**; the command cannot establish that trust, revocation, or upstream release authenticity. The second checks the operator's declared host headroom and KVM/cgroup flags **without accessing the VPS**, and cannot establish actual measured host readiness. Both commands always report execution_authorized=false and vm_launched=false. See [SC-13b2 trust and host gates](VM_PROVENANCE_HOST_GATE.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

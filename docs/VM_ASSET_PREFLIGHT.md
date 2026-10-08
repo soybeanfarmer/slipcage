@@ -62,3 +62,7 @@ The separate [SC-12 real asset/host verification issue #23](https://github.com/s
 6. Obtain explicit owner approval for a bounded single-VM runtime test. Owner publishes any release and runs VPS commands; captured deployed SHA, journals and resource/cleanup logs are reviewed separately.
 
 **SC-13 is still not fully accepted.** The only work in this PR is local byte matching and fail-closed tests; no real executable adapter, host changes or guest test is present.
+
+## SC-13b2 linked provenance and host evidence
+
+The separate read-only signed-statement and operator-snapshot gates now have strict CLI interfaces. They do **not** independently authenticate upstream publisher keys or verify live host facts. [See SC-13b2 implementation and outstanding security gates](VM_PROVENANCE_HOST_GATE.md). Real QEMU and VPS tests remain separately owner-approved work.
