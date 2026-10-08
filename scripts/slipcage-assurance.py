@@ -15,6 +15,8 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sqlite3
+import tarfile
 import stat
 import sys
 import tempfile
@@ -108,7 +110,8 @@ def check(*, backups: Path = BACKUPS, scratch: Path = SCRATCH,
                     "live_data_modified": False,
                     "note": "Scratch restore confirmed. Backup remains local to this VPS.",
                 }
-        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError, TypeError, json.JSONDecodeError, sqlite3.Error,
+                tarfile.TarError) as exc:
             report = {
                 "schema_version": 1, "checked_utc": now,
                 "passed": False,
