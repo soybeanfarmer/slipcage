@@ -1,0 +1,30 @@
+[Unit]
+Description=Manual read-only Slipcage disposable guest evidence audit
+After=local-fs.target
+ConditionPathIsDirectory=/var/lib/slipcage-guest/runs
+
+[Service]
+Type=oneshot
+User=slipcage-vmprobe
+Group=slipcage-vmprobe
+ExecStart=/usr/bin/python3 /usr/local/lib/slipcage/experiment-audit.py --limit 20 --format markdown
+TimeoutStartSec=30s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+PrivateDevices=yes
+ReadOnlyPaths=/var/lib/slipcage-guest
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryMax=128M
+CPUQuota=25%
+TasksMax=16
+LimitNOFILE=128
