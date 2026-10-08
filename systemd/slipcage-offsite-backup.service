@@ -1,0 +1,29 @@
+[Unit]
+Description=Opt-in encrypted off-server Slipcage research backup
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/slipcage/offsite.env
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+EnvironmentFile=/etc/slipcage/offsite.env
+ExecStart=/usr/local/sbin/slipcage-offsite-backup
+TimeoutStartSec=1h
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/slipcage
+ReadOnlyPaths=/var/backups/slipcage /etc/slipcage
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
