@@ -79,6 +79,23 @@ restore, reboot, exploit execution, or automatic release is added.**
 See [Recovery operations](docs/RECOVERY.md). The installed v0.2.1 release
 remains unchanged until a later manual production approval.
 
+## v0.4 Research Environment Readiness (proposal)
+
+Proposes **manual-only** nested-KVM capability checks and a harmless disposable
+Linux microguest boot test. QEMU runs under a dedicated unprivileged systemd
+sandbox, with no guest disks or networking, explicit CPU/RAM/time limits,
+and no automatic VM workloads. Neither test runs during deployment.
+
+An optional encrypted **off-server** backup runner uses Restic, but its
+timer is intentionally disabled until a separate destination, credentials,
+verified host identity and remote restore check are configured. No remote
+storage subscription or paid VPN is required by the local research stack;
+off-server capacity must be supplied independently.
+
+See [Research Environment Readiness](docs/ENVIRONMENT_READINESS.md) for
+safety boundaries, manual checks and offsite setup. Production stays on
+v0.3.0 until a reviewed and explicitly approved release.
+
 ## Useful commands
 
 ```bash
