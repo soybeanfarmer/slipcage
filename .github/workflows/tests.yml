@@ -128,6 +128,59 @@ jobs:
               if args[0] == "simulate-vm-pair" and "cleanup_failure" in args:
                   assert obj["candidate_attempted"] is False
           PYCODE
+          python - <<'PYCODE'
+          import hashlib
+          import json
+          from pathlib import Path
+          import subprocess
+          import tempfile
+
+          names = {
+              "os_image_sha256": "os-image.qcow2",
+              "kernel_sha256": "kernel.bin",
+              "k3s_binary_sha256": "k3s.bin",
+              "cni_assets_sha256": "cni-assets.tar",
+              "container_images_sha256": "container-images.tar",
+          }
+          with tempfile.TemporaryDirectory() as scratch:
+              root = Path(scratch)
+              assets = root / "assets"
+              assets.mkdir(mode=0o700)
+              assets.chmod(0o700)
+              design = json.loads(Path(
+                  "examples/vm-plans/k3s-synthetic-design.json"
+              ).read_text(encoding="utf-8"))
+              design["provenance"]["pin_status"] = "operator_supplied_unverified"
+              design["provenance"]["note"] = "CI byte-only test, no verified software"
+              design["software"]["guest_kernel_release"] = "6.8.0-test"
+              for field, filename in names.items():
+                  data = ("CI-only test bytes: " + field).encode("ascii")
+                  child = assets / filename
+                  child.write_bytes(data)
+                  child.chmod(0o600)
+                  design["artifacts"][field] = hashlib.sha256(data).hexdigest()
+              path = root / "test-plan.json"
+              path.write_text(json.dumps(design), encoding="utf-8")
+              result = subprocess.run(
+                  ["slipcage", "verify-vm-artifacts", str(path),
+                   "--directory", str(assets), "--json"],
+                  capture_output=True, text=True, check=False,
+              )
+              assert result.returncode == 0, (result.returncode, result.stderr)
+              record = json.loads(result.stdout)
+              assert record["content_sha256_matches_declared_pins"] is True
+              for field in ("software_origin_authenticated", "execution_authorized",
+                            "vm_launched", "guest_boot_verified", "host_modified"):
+                  assert record[field] is False, (field, record)
+              test_sample = subprocess.run(
+                  ["slipcage", "verify-vm-artifacts",
+                   "examples/vm-plans/k3s-synthetic-design.json",
+                   "--directory", str(assets), "--json"],
+                  capture_output=True, text=True, check=False,
+              )
+              assert test_sample.returncode == 2
+              assert not test_sample.stdout
+          PYCODE
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

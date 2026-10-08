@@ -348,6 +348,26 @@ synthetic unresolved cleanup requiring review; 2 is invalid input.
 The real run/compare/report commands remain unavailable with exit code 3.
 See [SC-13a design and real-adapter prerequisites](VM_LIFECYCLE_DESIGN.md).
 
+## SC-13b1 — Private local VM asset byte checking (not a guest runner)
+
+The new `slipcage verify-vm-artifacts` command performs bounded, read-only
+SHA-256 checks over five fixed private files supplied by the operator and
+compares them to the SC-12 plan's declared pins:
+
+~~~bash
+slipcage verify-vm-artifacts /path/to/operator-plan.json \
+  --directory /path/to/private-assets --json
+~~~
+
+It **rejects the repository's synthetic example plan**; it requires a
+non-synthetic, but still *untrusted*, operator-supplied declaration. Matching
+byte hashes do not authenticate software origin, inspect image/archive
+contents, check provider authorization or start any QEMU guest. Outputs always
+record `execution_authorized: false`, `vm_launched: false` and
+`software_origin_authenticated: false`. This is a development-time check
+only; Ansible does not install it on the VPS. See
+[SC-13b1 limits and live VM prerequisites](VM_ASSET_PREFLIGHT.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

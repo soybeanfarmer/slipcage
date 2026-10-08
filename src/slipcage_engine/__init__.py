@@ -36,6 +36,10 @@ from .vm_lifecycle import (
     simulate_sequential_pair,
 )
 
+from .vm_assets import (
+    VMAssetError, VerifiedLocalAsset, VMAssetPreflight, verify_local_vm_assets,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -53,4 +57,5 @@ __all__ = [
     "VMLifecycleError", "VMSimulationScenario", "VMFinalState",
     "VMFailureReason", "VMEvent", "VMLifecycleSimulation",
     "simulate_vm_lifecycle", "simulate_sequential_pair",
+    "VMAssetError", "VerifiedLocalAsset", "VMAssetPreflight", "verify_local_vm_assets",
 ]

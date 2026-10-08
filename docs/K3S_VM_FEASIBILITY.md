@@ -97,3 +97,14 @@ The existing human approval workflow is unchanged: code/CI → owner PR review/m
 ## SC-13a lifecycle controls (offline-only)
 
 A pure in-memory lifecycle simulation now models the future one-VM-at-a-time admission, start, stop, failure/cancellation and cleanup transitions. It does not claim that the SC-12 image digest strings are real or that a VM is bootable. Live host measurements, provider authorization, independent image pin verification, guest networking and hard supervisor limits are still outstanding. See [SC-13a lifecycle design](VM_LIFECYCLE_DESIGN.md) and [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23).
+
+## SC-13b1 — Local asset SHA-256 preflight
+
+The optional `verify-vm-artifacts` command now checks **actual local bytes**
+against operator-entered SC-12 artifact digests using fixed filenames and
+private root/file permissions. It rejects the synthetic example plan and
+does not authenticate an upstream publisher, verify guest image contents, boot
+QEMU, prove KVM/host readiness or authorize execution. See
+[read-only VM artifact preflight](VM_ASSET_PREFLIGHT.md). Issue #23 remains
+open for **trusted artifact provenance** and independently checked VPS
+measurements/permission.
