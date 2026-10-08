@@ -101,7 +101,11 @@ def boot_guest(*, runner=subprocess.run,
                kernel_path: Path | None = None, initrd_path: Path | None = None) -> dict:
     """Start a tiny Linux guest without network, drives, or persistent changes."""
     preflight = inspect()
-    kernel = kernel_path if kernel_path is not None else Path("/boot") / f"vmlinuz-{os.uname().release}"
+    # /boot kernels can be root-readable only on Ubuntu. Ansible copies the
+    # currently running kernel to a public-read, root-owned location for this
+    # unprivileged probe; never broaden /boot permissions or run QEMU as root.
+    kernel = (kernel_path if kernel_path is not None
+              else Path("/usr/local/lib/slipcage") / f"vmlinuz-{os.uname().release}")
     initrd = initrd_path if initrd_path is not None else GUEST_INITRD
     if not (preflight["process_can_open_kvm"] and preflight["qemu_binary_available"]
             and kernel.is_file() and initrd.is_file()):
