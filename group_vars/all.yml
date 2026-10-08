@@ -13,3 +13,6 @@ install_research_toolchain: true
 # Approx 10 GiB upper systemd cgroup limit; leave RAM for host OS.
 lab_memory_max: 10G
 lab_cpu_quota: "500%"
+
+# Drain deadline in seconds; do not interrupt active experiments.
+deploy_drain_seconds: 7200
