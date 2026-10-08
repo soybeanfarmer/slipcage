@@ -398,6 +398,26 @@ favorable observation reports provider permission, KVM usability, cgroup
 quotas, active guest safety and execution authorization as **unverified/false**.
 See [SC-13b3 limitations and operator review](VM_HOST_OBSERVATION.md).
 
+## SC-13b4 — Incomplete QEMU launch blueprint (offline only)
+
+The `slipcage plan-qemu` command produces a fixed, **paused and incomplete**
+QEMU argument prefix from a validated, nonsynthetic SC-12 plan and checked
+local asset bytes. It **does not start QEMU**, attach disks/kernels/NICs,
+create an overlay or enforce any host process limits:
+
+~~~bash
+slipcage plan-qemu /path/to/operator-plan.json \
+  --assets-dir /path/to/operator-private-assets --json
+~~~
+
+Its output always marks `argv_is_complete_launch_command: false`,
+`execution_authorized: false`, `real_vm_launched: false` and host/runtime
+verification false. The CLI rehashes supplied private assets, but actual
+software publisher identity, host KVM and provider approval remain unverified.
+**Do not manually execute the displayed prefix**. The real launch library
+unconditionally refuses. See [SC-13b4 incomplete blueprint](QEMU_BLUEPRINT.md)
+and open runtime prerequisites under Issues #23 and #25.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

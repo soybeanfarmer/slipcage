@@ -199,6 +199,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vm_provenance_host.py' -q
           # Synthetic fixtures/mocks only; never probe CI host or run any VM.
           python -m unittest discover -s tests -p 'test_vm_host_observe.py' -q
+          # Fixed, incomplete QEMU argv blueprint; no QEMU launch or disk creation.
+          python -m unittest discover -s tests -p 'test_vm_qemu_blueprint.py' -q
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

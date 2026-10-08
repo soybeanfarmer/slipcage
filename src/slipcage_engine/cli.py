@@ -21,6 +21,7 @@ from .vm_assets import VMAssetError, verify_local_vm_assets
 from .vm_provenance import VMProvenanceError, verify_provenance
 from .vm_host_readiness import VMHostReadinessError, load_host_snapshot, assess_host_snapshot
 from .vm_host_observe import HostObservationError, inspect_local_host
+from .vm_qemu_blueprint import QemuBlueprintError, build_qemu_blueprint
 from .vm_lifecycle import (
     VMLifecycleError, VMSimulationScenario, VMFinalState, VMFailureReason,
     simulate_vm_lifecycle, simulate_sequential_pair,
@@ -131,6 +132,14 @@ def build_parser() -> argparse.ArgumentParser:
     observe.add_argument("--scratch-root", required=True, help="Existing selected local filesystem root; never created")
     observe.add_argument("--json", action="store_true")
 
+    qemu = commands.add_parser(
+        "plan-qemu",
+        help="Build an INCOMPLETE paused, diskless QEMU argv prefix; NEVER launch a guest",
+    )
+    qemu.add_argument("file", help="Strict non-synthetic SC-12 plan")
+    qemu.add_argument("--assets-dir", required=True, help="Private SC-13b1 local asset directory")
+    qemu.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -146,7 +155,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "inspect-vm-host":
+        if args.command == "plan-qemu":
+            vm_definition = load_vm_plan(args.file)
+            asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
+            blueprint = build_qemu_blueprint(vm_definition, asset_preflight)
+        elif args.command == "inspect-vm-host":
             vm_definition = load_vm_plan(args.file)
             host_observation = inspect_local_host(vm_definition, args.scratch_root)
         elif args.command == "verify-vm-provenance":
@@ -195,9 +208,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "plan-qemu":
+        if args.json:
+            print(blueprint.canonical_json().decode("ascii"))
+        else:
+            print("INCOMPLETE QEMU ARGV PREFIX ONLY; no disk, guest kernel, or NIC; "
+                  "execution_authorized=false; real_vm_launched=false")
+        return 0  # Planning only; NEVER host/guest readiness.
 
     if args.command == "inspect-vm-host":
         if args.json:
