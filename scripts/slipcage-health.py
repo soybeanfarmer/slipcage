@@ -23,14 +23,16 @@ DEPLOY_SHA = Path("/var/lib/slipcage/deployed-sha")
 GUEST_RUNS = Path("/var/lib/slipcage-guest/runs")
 FAULT_RUNS = Path("/var/lib/slipcage-fault")
 STATUS = Path("/var/lib/slipcage-health/status.json")
+ASSURANCE_STATUS = Path("/var/lib/slipcage-assurance/status.json")
+MAX_ASSURANCE_AGE_H = 10 * 24
 ACTIVE_SERVICES = ("isolab-dagu.service",)
 ACTIVE_TIMERS = (
     "slipcage-backup.timer", "slipcage-recover.timer",
-    "slipcage-pull-deploy.timer",
+    "slipcage-pull-deploy.timer", "slipcage-assurance.timer",
 )
 FAILED_UNITS = (
     "slipcage-backup.service", "slipcage-recover.service",
-    "slipcage-pull-deploy.service",
+    "slipcage-pull-deploy.service", "slipcage-assurance.service",
 )
 BACKUP_PATTERN = re.compile(r"^backup-\d{8}T\d{12}Z$")
 GUEST_PATTERN = re.compile(r"^run-\d{8}T\d{12}Z-[a-zA-Z0-9_]+$")
@@ -103,6 +105,32 @@ def backup_check(root: Path, now: datetime) -> dict:
     }
 
 
+
+def assurance_check(status: Path, now: datetime) -> dict:
+    """Evaluate the last bounded scratch-restore outcome, not just backup age."""
+    if status.is_symlink() or not status.is_file():
+        return {"ok": False, "reason": "never_checked"}
+    try:
+        if status.stat().st_size > 32768:
+            return {"ok": False, "reason": "status_too_large"}
+        obj = json.loads(status.read_text(encoding="utf-8"))
+        when = datetime.fromisoformat(obj["checked_utc"])
+        if when.tzinfo is None:
+            raise ValueError("Naive assurance time")
+        age_h = (now - when).total_seconds() / 3600
+        if obj.get("schema_version") != 1 or type(obj.get("passed")) is not bool:
+            raise ValueError("Invalid assurance record")
+        if obj["passed"] is not True:
+            return {"ok": False, "reason": "restore_check_failed",
+                    "age_hours": round(age_h, 2)}
+        if age_h < 0 or age_h > MAX_ASSURANCE_AGE_H:
+            return {"ok": False, "reason": "restore_check_stale_or_future",
+                    "age_hours": round(age_h, 2)}
+        return {"ok": True, "reason": "recent_scratch_restore_passed",
+                "age_hours": round(age_h, 2)}
+    except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+        return {"ok": False, "reason": "unreadable_restore_status"}
+
 def stale_runs(root: Path, pattern: re.Pattern, now: datetime, *,
                summary_name: str = "summary.json") -> dict:
     try:
@@ -135,6 +163,7 @@ def stale_runs(root: Path, pattern: re.Pattern, now: datetime, *,
 def inspect(*, now: datetime | None = None, disk_path: Path = Path("/"),
             backup_root: Path = BACKUP_ROOT, deploy_sha: Path = DEPLOY_SHA,
             guest_runs: Path = GUEST_RUNS, fault_runs: Path = FAULT_RUNS,
+            assurance_status: Path = ASSURANCE_STATUS,
             unit_probe=systemctl_state, disk_usage=shutil.disk_usage) -> dict:
     now = now or utc_now()
     issues = []
@@ -168,6 +197,9 @@ def inspect(*, now: datetime | None = None, disk_path: Path = Path("/"),
     backup = backup_check(backup_root, now)
     if not backup["ok"]:
         issues.append("local_backup:" + backup["reason"])
+    assurance = assurance_check(assurance_status, now)
+    if not assurance["ok"]:
+        issues.append("restore_assurance:" + assurance["reason"])
     guest = stale_runs(guest_runs, GUEST_PATTERN, now)
     fault = stale_runs(fault_runs, FAULT_PATTERN, now)
     for name, value in (("guest", guest), ("fault", fault)):
@@ -182,8 +214,9 @@ def inspect(*, now: datetime | None = None, disk_path: Path = Path("/"),
         "issues": sorted(set(issues)),
         "deployed_sha": sha,
         "units": units, "disk": disk,
-        "backup": backup, "artifacts": {"guest": guest, "fault": fault},
-        "note": ("Checks service state, backup freshness/manifest shape, disk space and "
+        "backup": backup, "restore_assurance": assurance,
+        "artifacts": {"guest": guest, "fault": fault},
+        "note": ("Checks service state, backup freshness/manifest shape, latest scratch restore, disk space and "
                  "stale artifacts. Does not restore backups, execute a VM, or send remote alerts."),
     }
 
