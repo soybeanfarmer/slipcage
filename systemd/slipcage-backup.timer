@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up Slipcage research data daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=45min
+Persistent=true
+Unit=slipcage-backup.service
+
+[Install]
+WantedBy=timers.target
