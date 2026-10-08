@@ -21,7 +21,9 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax
-        run: python -m compileall -q app tests
+        run: python -m compileall -q app scripts tests
+      - name: Validate shell scripts
+        run: bash -n scripts/*.sh
       - name: Validate YAML syntax
         run: |
           python - <<'PYCODE'
