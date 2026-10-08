@@ -23,6 +23,8 @@ import time
 DEFAULT_PROBE = Path("/usr/local/lib/slipcage/kvm-probe.py")
 DEFAULT_STATE = Path("/var/lib/slipcage-guest")
 MAX_CYCLES = 5
+MAX_EXPERIMENT_CYCLES = 3
+ALLOWED_PROFILES = ('boot', 'experiment')
 KEEP_RUNS = 20
 TIMEOUT_SECONDS = 85
 LOG_TAIL_BYTES = 16384
@@ -33,22 +35,28 @@ def utc_stamp() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def parse_boot_result(log: str) -> dict | None:
-    """Read the boot probe's structured result; avoid trusting console prose."""
+def parse_boot_result(log: str, profile: str = 'boot') -> dict | None:
+    """Extract only the fixed profile's structured result; ignore other text."""
+    if profile not in ALLOWED_PROFILES:
+        raise ValueError("Unsupported guest profile")
+    expected_key = "experiment_passed" if profile == "experiment" else "guest_booted"
     for line in reversed(log.splitlines()):
         try:
             value = json.loads(line)
         except (json.JSONDecodeError, ValueError):
             continue
-        if isinstance(value, dict) and "guest_booted" in value:
+        if isinstance(value, dict) and expected_key in value:
             return value
     return None
 
 
 def run_cycle(probe: Path = DEFAULT_PROBE, *,
-              timeout: float = TIMEOUT_SECONDS) -> tuple[dict, str]:
+              timeout: float = TIMEOUT_SECONDS,
+              profile: str = "boot") -> tuple[dict, str]:
     if not (0 < timeout <= TIMEOUT_SECONDS):
         raise ValueError("Cycle timeout out of permitted range")
+    if profile not in ALLOWED_PROFILES:
+        raise ValueError("Unsupported guest profile")
     start = time.monotonic()
     timed_out = False
     error = None
@@ -59,7 +67,7 @@ def run_cycle(probe: Path = DEFAULT_PROBE, *,
         # Session isolation lets the supervisor kill the probe AND any QEMU
         # process it spawned if the outer time limit fires.
         child = subprocess.Popen(
-            [sys.executable, str(probe), "--boot"],
+            [sys.executable, str(probe), "--experiment" if profile == "experiment" else "--boot"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -87,10 +95,15 @@ def run_cycle(probe: Path = DEFAULT_PROBE, *,
                 pass
             child.wait()
     log = output[-LOG_TAIL_BYTES:].decode("utf-8", errors="replace")
-    payload = parse_boot_result(log)
+    payload = parse_boot_result(log, profile)
+    agreed = (payload is not None and (
+        payload.get("experiment_passed") is True
+        and payload.get("known_answers_verified") is True
+        and payload.get("workload") == "fixed_arithmetic_sha256_v1"
+        if profile == "experiment" else payload.get("guest_booted") is True
+    ))
     passed = (
-        not timed_out and error is None and returncode == 0
-        and payload is not None and payload.get("guest_booted") is True
+        not timed_out and error is None and returncode == 0 and agreed
         and type(payload.get("exit_code")) is int and payload["exit_code"] == 0
         and payload.get("network") == "disabled"
         and payload.get("persistent_guest_disk") is False
@@ -106,6 +119,14 @@ def run_cycle(probe: Path = DEFAULT_PROBE, *,
         "seconds": round(time.monotonic() - start, 3),
         "timestamp_utc": utc_stamp(),
     }
+    if profile == "experiment" and payload is not None:
+        # Resource figures come from the QEMU subprocess, not host-wide load.
+        result["qemu_resources"] = {
+            key: payload.get(key)
+            for key in ("wall_seconds", "cpu_user_seconds",
+                        "cpu_system_seconds", "qemu_peak_rss_kib")
+        }
+        result["known_answers_verified"] = payload.get("known_answers_verified") is True
     return result, log
 
 
@@ -134,9 +155,13 @@ def prune_runs(runs: Path, keep: int = KEEP_RUNS) -> int:
 
 def run_lifecycle(cycles: int, *, probe: Path = DEFAULT_PROBE,
                   state: Path = DEFAULT_STATE, timeout: float = TIMEOUT_SECONDS,
-                  cycle_fn=None) -> dict:
+                  cycle_fn=None, profile: str = "boot") -> dict:
     if not isinstance(cycles, int) or not 1 <= cycles <= MAX_CYCLES:
         raise ValueError("Use between 1 and 5 cycles")
+    if profile not in ALLOWED_PROFILES:
+        raise ValueError("Unsupported guest profile")
+    if profile == "experiment" and cycles > MAX_EXPERIMENT_CYCLES:
+        raise ValueError("Use at most 3 controlled experiment cycles")
     if not (0 < timeout <= TIMEOUT_SECONDS):
         raise ValueError("Invalid cycle timeout")
     if state.is_symlink():
@@ -154,9 +179,9 @@ def run_lifecycle(cycles: int, *, probe: Path = DEFAULT_PROBE,
         os.chmod(directory, 0o700)
         results = []
         for index in range(1, cycles + 1):
-            outcome, log = ((cycle_fn(probe=probe, timeout=timeout))
+            outcome, log = ((cycle_fn(probe=probe, timeout=timeout, profile=profile))
                             if cycle_fn is not None else
-                            run_cycle(probe, timeout=timeout))
+                            run_cycle(probe, timeout=timeout, profile=profile))
             outcome = dict(outcome)
             outcome["cycle"] = index
             log_path = directory / f"cycle-{index:02}.log"
@@ -168,7 +193,8 @@ def run_lifecycle(cycles: int, *, probe: Path = DEFAULT_PROBE,
                 # Don't repeatedly boot guests after a failure.
                 break
         summary = {
-            "mode": "benign_diskless_guest_lifecycle",
+            "mode": ("fixed_arithmetic_sha256_v1" if profile == "experiment" else
+                     "benign_diskless_guest_lifecycle"),
             "run_dir": str(directory),
             "requested_cycles": cycles,
             "completed_cycles": len(results),
@@ -190,10 +216,12 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cycles", type=int, required=True,
                         help="Number of sequential manual guest boots, from 1 to 5.")
+    parser.add_argument("--profile", choices=ALLOWED_PROFILES, default="boot",
+                        help="Fixed packaged workload only; no guest payload arguments.")
     args = parser.parse_args(argv)
     os.umask(0o077)
     try:
-        report = run_lifecycle(args.cycles)
+        report = run_lifecycle(args.cycles, profile=args.profile)
     except (OSError, ValueError) as exc:
         print(f"slipcage-guest-lifecycle: {exc}", file=sys.stderr)
         return 2
