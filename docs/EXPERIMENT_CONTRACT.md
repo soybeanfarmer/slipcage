@@ -1,6 +1,6 @@
 # Proposed experiment and evidence contracts (design only)
 
-**Status: proposal for v0.12+. No parser, executor, schema registry or Kubernetes adapter is introduced in v0.11.** The examples below are illustrative and must not be accepted as executable input by the current lab.
+**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. No executor, comparison/report engine, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
 
 ## Goals and boundary
 
@@ -42,7 +42,7 @@ A future run request references **one immutable experiment/pack digest** and two
 | `compare` | Two verified results for the same assertion | Change classification or `incomparable` with reason |
 | `render_report` | Comparison and verified evidence | Stable JSON and human-readable Markdown |
 
-Names are design placeholders, **not existing Python functions**. The self-hosted CLI should eventually expose `slipcage validate`, `slipcage run`, `slipcage compare`, and `slipcage report`. The hosted worker should call the same core engine rather than duplicating semantics.
+`validate_spec_bytes` and `load_spec` now implement schema-based offline parsing/validation for the restricted RBAC example profile. The `slipcage validate` CLI works; `slipcage run`, `slipcage compare` and `slipcage report` exist only as explicit nonzero-refusal placeholders. The other interface names remain design proposals, **not existing Python functions**. A future hosted worker should call the same core engine rather than duplicating semantics.
 
 ## Assertion result semantics
 

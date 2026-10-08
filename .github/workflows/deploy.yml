@@ -35,8 +35,10 @@ jobs:
       - name: Validate source
         run: |
           python -m pip install 'PyYAML==6.0.2' 'ansible-core==2.17.14'
+          python -m pip install -e .
+          slipcage validate examples/experiments/rbac-pod-create-denied.yaml --json
           python -m unittest discover -s tests -v
-          python -m compileall -q app scripts tests
+          python -m compileall -q app scripts src tests
           bash -n scripts/*.sh
           ansible-playbook -i inventory/hosts.ini.example playbooks/site.yml --syntax-check
       - name: Publish approved release
