@@ -44,7 +44,7 @@ Phase gate: synthetic security regression can be replayed and reviewed without V
 | ID | Milestone | Acceptance gate |
 | --- | --- | --- |
 | SC-12 | Pinned VM definitions | Offline non-executable schema, synthetic examples and capacity estimator; actual OS/kernel/K3s/CNI asset digest verification and VPS measurements remain a separate human-approved gate |
-| SC-13 | Disposable VM adapter | Operator-approved KVM creation/teardown including failure paths; no uncontrolled egress |
+| SC-13 | Disposable VM adapter | SC-13a offline lifecycle/fault simulation can be CI-tested; **real** approved KVM create/teardown, isolation, resource measurements and crash cleanup remain the SC-13b human/runtime gate |
 | SC-14 | Dedicated K3s VM | Version-pinned isolated cluster reaches readiness and reliably cleans up |
 | SC-15 | In-guest test/evidence transport | Reviewed harness executes with constrained access and returns bounded evidence |
 | SC-16 | RBAC behavioral assertion | Expected-denial/allowed controls verify real API response under exact identity |

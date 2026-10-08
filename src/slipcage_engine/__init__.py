@@ -30,6 +30,12 @@ from .vm_plan import (
     load_host_inventory, assess_vm_plan,
 )
 
+from .vm_lifecycle import (
+    VMLifecycleError, VMSimulationScenario, VMFinalState, VMFailureReason,
+    VMEvent, VMLifecycleSimulation, simulate_vm_lifecycle,
+    simulate_sequential_pair,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -44,4 +50,7 @@ __all__ = [
     "VMPlanError", "K3sVMPlan", "ReportedHostInventory", "VMFeasibility",
     "validate_vm_plan_bytes", "load_vm_plan", "validate_host_inventory_bytes",
     "load_host_inventory", "assess_vm_plan",
+    "VMLifecycleError", "VMSimulationScenario", "VMFinalState",
+    "VMFailureReason", "VMEvent", "VMLifecycleSimulation",
+    "simulate_vm_lifecycle", "simulate_sequential_pair",
 ]

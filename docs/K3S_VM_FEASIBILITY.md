@@ -93,3 +93,7 @@ Before *any* real VM boot or filesystem/network change, propose a separate PR an
 **SC-12 acceptance for this PR:** schema and CLI work offline, unsafe configurations fail closed, pin declarations are deterministic, synthetic capacity estimates are correct, documentation distinguishes missing real artifacts from verified evidence, existing CI passes, no VM executes. **Actual image pin verification, VPS measurements and live K3s readiness remain outstanding** and must not be claimed by merging this PR.
 
 The existing human approval workflow is unchanged: code/CI → owner PR review/merge → separately authorized release → owner-run VPS commands → evidence review. A documentation/contract change alone does not require a VPS promotion.
+
+## SC-13a lifecycle controls (offline-only)
+
+A pure in-memory lifecycle simulation now models the future one-VM-at-a-time admission, start, stop, failure/cancellation and cleanup transitions. It does not claim that the SC-12 image digest strings are real or that a VM is bootable. Live host measurements, provider authorization, independent image pin verification, guest networking and hard supervisor limits are still outstanding. See [SC-13a lifecycle design](VM_LIFECYCLE_DESIGN.md) and [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23).
