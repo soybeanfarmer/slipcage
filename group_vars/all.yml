@@ -1,0 +1,18 @@
+---
+# Pinned to the official Dagu v2.18.1 Linux amd64 GitHub release SHA-256.
+dagu_version: "2.18.1"
+dagu_archive_sha256: "69f5a0fc392d2c10630e68a1154e4a69b2c4ef6005ad753976dbc7057b1833b5"
+research_user: isolab
+research_group: isolab
+lab_root: /opt/isolab
+lab_data: /srv/isolab
+lab_dagu_home: /var/lib/dagu
+lab_dashboard_bind: "127.0.0.1"
+lab_dashboard_port: 8525
+install_research_toolchain: true
+# Approx 10 GiB upper systemd cgroup limit; leave RAM for host OS.
+lab_memory_max: 10G
+lab_cpu_quota: "500%"
+
+# Drain deadline in seconds; do not interrupt active experiments.
+deploy_drain_seconds: 7200

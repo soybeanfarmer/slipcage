@@ -1,0 +1,5 @@
+[research]
+lab ansible_host=REPLACE_WITH_SERVER_IP ansible_user=ubuntu
+
+[research:vars]
+ansible_python_interpreter=/usr/bin/python3

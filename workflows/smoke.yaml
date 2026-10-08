@@ -1,0 +1,9 @@
+name: smoke
+queue: metadata
+timeout_sec: 60
+steps:
+  - id: check_environment
+    action: exec
+    with:
+      command: /usr/local/bin/slipcage-guard
+      args: ["run", "/usr/bin/python3", "/opt/isolab/app/isolab.py", "smoke", "--output", "/srv/isolab/reports"]
