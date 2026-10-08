@@ -188,6 +188,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vm_host_observe.py' -q
           # Fixed, incomplete QEMU argv blueprint; no QEMU launch or disk creation.
           python -m unittest discover -s tests -p 'test_vm_qemu_blueprint.py' -q
+          # SC-13b5 pure in-memory state machine; no OS lock, VM or overlay.
+          python -m unittest discover -s tests -p 'test_vm_supervision.py' -q
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

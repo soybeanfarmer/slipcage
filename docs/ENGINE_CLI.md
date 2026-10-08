@@ -418,6 +418,26 @@ software publisher identity, host KVM and provider approval remain unverified.
 unconditionally refuses. See [SC-13b4 incomplete blueprint](QEMU_BLUEPRINT.md)
 and open runtime prerequisites under Issues #23 and #25.
 
+## SC-13b5 — Offline supervisor budgets and crash fencing
+
+The new `slipcage simulate-vm-supervision` and
+`slipcage simulate-vm-supervision-pair` commands exercise a pure in-memory
+resource/deadline and single-owner lease model using a nonsynthetic SC-12 plan
+and read-only local asset checks:
+
+~~~bash
+slipcage simulate-vm-supervision /path/to/development-plan.json \
+  --assets-dir /path/to/private-assets --scenario cleanup_failure --json
+~~~
+
+The model rejects stale revisions, overlapping attempts, invalid state
+transitions, deadline and simulated resource breaches. A crash or failed
+cleanup **quarantines** the simulated attempt and blocks subsequent attempts
+without automatic clearance. The budget and journal are **not backed by
+systemd, cgroups, disk quotas, process watchdogs or persistent OS locks**.
+No guest is started and no disk is written. See
+[SC-13b5 lifecycle supervision contract](VM_SUPERVISION_CONTRACT.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
