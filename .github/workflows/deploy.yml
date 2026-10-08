@@ -1,72 +1,50 @@
-name: Deploy Slipcage
+name: Approve Slipcage Release
+
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. v0.1.0)'
+        type: string
+        required: true
 
 permissions:
-  contents: read
-  id-token: write
+  contents: write
 
 concurrency:
-  group: slipcage-production
+  group: slipcage-release
   cancel-in-progress: false
 
 jobs:
-  validate:
+  release:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Validate release
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Version must be vMAJOR.MINOR.PATCH"; exit 1;
+          }
+      - name: Validate source
         run: |
           python -m pip install 'PyYAML==6.0.2' 'ansible-core==2.17.14'
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts tests
+          bash -n scripts/*.sh
           ansible-playbook -i inventory/hosts.ini.example playbooks/site.yml --syntax-check
-
-  deploy:
-    needs: validate
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    environment: production
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install Ansible
-        run: python -m pip install 'ansible-core==2.17.14'
-      - name: Connect ephemeral runner to tailnet
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:slipcage-ci
-      - name: Configure pinned SSH host identity
+      - name: Publish approved release
         env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_HOST_KEYS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
-          DEPLOY_HOST: ${{ vars.SLIPCAGE_TAILSCALE_HOST }}
-          DEPLOY_USER: ${{ vars.SLIPCAGE_DEPLOY_USER }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.version }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
-          set -euo pipefail
-          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.:-]+$ ]] || exit 1
-          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || exit 1
-          install -d -m 0700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
-          printf '%s\n' "$SSH_HOST_KEYS" > ~/.ssh/known_hosts
-          chmod 0600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-          printf '[research]\nlab ansible_host=%s ansible_user=%s\n[research:vars]\nansible_python_interpreter=/usr/bin/python3\n' \
-            "$DEPLOY_HOST" "$DEPLOY_USER" > inventory/hosts.ini
-      - name: Verify SSH access and host identity
-        run: |
-          ansible research -i inventory/hosts.ini --private-key ~/.ssh/id_ed25519 -m ansible.builtin.ping
-      - name: Drain and deploy guarded research workflows
-        run: |
-          ansible-playbook -i inventory/hosts.ini --private-key ~/.ssh/id_ed25519 playbooks/site.yml
-      - name: Check Dagu service
-        run: |
-          ansible research -i inventory/hosts.ini --private-key ~/.ssh/id_ed25519 -m ansible.builtin.command -a 'systemctl is-active isolab-dagu.service'
+          gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" \
+            --title "$RELEASE_TAG" \
+            --notes "Approved Slipcage release $RELEASE_TAG. Deployment is pulled by the ServaRica systemd timer after GitHub CI verification."
