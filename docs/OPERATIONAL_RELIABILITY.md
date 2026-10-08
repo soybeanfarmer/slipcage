@@ -10,9 +10,11 @@ external requests, or make unapproved deployments.
 After a reviewed v0.9 release, the slipcage-health.timer is enabled.
 It starts slipcage-health.service approximately hourly, with randomized
 delay and a short service timeout. This is a **read-only, root-owned**
-service because local backups are accessible only to root. It has no
-capabilities, no network, a read-only host filesystem except its own
-private status state, 128 MiB memory and 25% CPU caps.
+service because local backups are accessible only to root. It retains
+only CAP_DAC_READ_SEARCH to traverse and read private 0700 guest/fault
+artifact directories, while retaining NoNewPrivileges, no network,
+private devices and a read-only host filesystem except its own private
+status directory. It retains 128 MiB memory and 25% CPU caps.
 
 Each check inspects:
 - The Dagu research service and existing approved deploy, backup and
@@ -108,3 +110,23 @@ valuable run records.
   backups cannot recover from loss of the entire VPS.
 - Fuzzing, malicious guest experiments, provider boundary testing and
   any unattended VM execution remain disabled.
+
+## v0.9.1 private-evidence read permission correction
+
+The initial v0.9.0 health service removed **all** effective DAC bypass
+capabilities. On the VPS, it failed with `SLIPCAGE_HEALTH_ERROR
+PermissionError` when it attempted to list private guest/fault artifact
+directories owned by the unprivileged VM account. The corrective service
+retains the **read/search-only** Linux capability `CAP_DAC_READ_SEARCH`
+without `CAP_DAC_OVERRIDE`, capability elevation, network or device
+permissions. This permits read-only inspection even when different
+owners protect their run directories with mode 0700. The scanner also
+turns unexpected permission failures into structured health issues
+instead of exiting before emitting a JSON status.
+
+Before approving the hotfix, review the expanded read access against
+the threat model: this capability allows reading *other* DAC-protected
+files inside the service's mount namespace. The service is still root,
+network-isolated, and filesystem write-protected except for its private
+health status. A different multi-user privilege architecture can be
+considered later if strict read isolation is required.

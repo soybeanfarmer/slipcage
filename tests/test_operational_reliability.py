@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -87,6 +88,40 @@ class HealthTests(unittest.TestCase):
         self.assertFalse(r["healthy"])
         self.assertIn("local_backup:unreadable_or_invalid_backup", r["issues"])
 
+    def test_private_guest_directory_permission_denial_is_an_alert(self):
+        original = Path.iterdir
+        guarded = self.guest
+        def restricted(path):
+            if path == guarded:
+                raise PermissionError("simulated private guest evidence")
+            return original(path)
+        with patch.object(Path, "iterdir", restricted):
+            report = self.inspect()
+        self.assertFalse(report["healthy"])
+        self.assertEqual(report["artifacts"]["guest"]["error"], "permission_denied")
+        self.assertIn("guest_artifact_scan_failed", report["issues"])
+
+    def test_root_backup_directory_read_denial_is_an_alert(self):
+        original = Path.iterdir
+        guarded = self.backup
+        def restricted(path):
+            if path == guarded:
+                raise PermissionError("simulated unreadable root-only backups")
+            return original(path)
+        with patch.object(Path, "iterdir", restricted):
+            report = self.inspect()
+        self.assertFalse(report["healthy"])
+        self.assertIn("local_backup:backup_directory_unreadable", report["issues"])
+
+    def test_health_unit_has_only_required_read_search_capability(self):
+        unit = (ROOT / "systemd" / "slipcage-health.service").read_text()
+        self.assertIn("User=root", unit)
+        self.assertIn("CapabilityBoundingSet=CAP_DAC_READ_SEARCH", unit)
+        self.assertIn("AmbientCapabilities=", unit)
+        self.assertIn("PrivateNetwork=yes", unit)
+        self.assertIn("ProtectHome=yes", unit)
+        self.assertNotIn("CapabilityBoundingSet=CAP_DAC_OVERRIDE", unit)
+
     def test_low_disk_and_failed_timer_detected(self):
         def unit(name, verb):
             if name == "slipcage-backup.timer":
@@ -138,7 +173,7 @@ class HealthTests(unittest.TestCase):
         for required in (
             "PrivateNetwork=yes", "PrivateDevices=yes", "MemoryMax=128M",
             "CPUQuota=25%", "StateDirectory=slipcage-health", "ProtectSystem=strict",
-            "NoNewPrivileges=yes", "CapabilityBoundingSet=",
+            "NoNewPrivileges=yes", "CapabilityBoundingSet=CAP_DAC_READ_SEARCH",
         ):
             self.assertIn(required, unit)
         self.assertIn("OnUnitInactiveSec=1h", timer)
