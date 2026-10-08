@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -16,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,6 +31,7 @@ ALLOWED_PROFILES = ('boot', 'experiment')
 KEEP_RUNS = 20
 TIMEOUT_SECONDS = 85
 LOG_TAIL_BYTES = 16384
+MAX_PROVENANCE_BYTES = 64 * 1024 * 1024
 RUN_DIRECTORY = re.compile(r"^run-\d{8}T\d{12}Z-[a-zA-Z0-9_]+$")
 
 
@@ -127,6 +130,11 @@ def run_cycle(probe: Path = DEFAULT_PROBE, *,
         "probe_exit_code": payload.get("exit_code") if payload else None,
         "seconds": round(time.monotonic() - start, 3),
         "timestamp_utc": utc_stamp(),
+        "failure_category": classify_failure(
+            passed=passed, timed_out=timed_out, error=error,
+            returncode=returncode, payload=payload, profile=profile,
+            resource_ok=resource_evidence_valid,
+        ),
     }
     if profile == "experiment" and payload is not None:
         # Resource figures come from the QEMU subprocess, not host-wide load.
@@ -138,6 +146,76 @@ def run_cycle(probe: Path = DEFAULT_PROBE, *,
         result["known_answers_verified"] = payload.get("known_answers_verified") is True
     return result, log
 
+
+
+def file_sha256_if_safe(path: Path) -> str | None:
+    """Hash only fixed, regular, bounded files; no symlinks or unknown trees."""
+    try:
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_PROVENANCE_BYTES:
+            return None
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def run_manifest(profile: str, cycles: int, probe: Path) -> dict:
+    image = ("experiment-v1.cpio.gz" if profile == "experiment"
+             else "microguest.cpio.gz")
+    root = Path("/usr/local/lib/slipcage")
+    return {
+        "schema_version": 1,
+        "started_utc": utc_stamp(),
+        "profile": profile,
+        "requested_cycles": cycles,
+        "kernel_release": os.uname().release,
+        "artifact_sha256": {
+            "controller": file_sha256_if_safe(Path(__file__)),
+            "probe": file_sha256_if_safe(probe),
+            "guest_initramfs": file_sha256_if_safe(root / image),
+            "staged_kernel": file_sha256_if_safe(
+                root / f"vmlinuz-{os.uname().release}"
+            ),
+        },
+        "note": "Local fingerprints only; null denotes unavailable artifact, not trusted proof.",
+    }
+
+
+def classify_failure(*, passed: bool, timed_out: bool,
+                     error: str | None, returncode: int | None,
+                     payload: dict | None, profile: str,
+                     resource_ok: bool) -> str:
+    if passed:
+        return "none"
+    if timed_out:
+        return "outer_timeout_process_group_killed"
+    if error:
+        return "probe_launch_failed"
+    if returncode is None:
+        return "probe_missing_exit_status"
+    if payload is None:
+        return "missing_structured_probe_result"
+    if profile == "experiment" and not resource_ok:
+        return "resource_evidence_missing_or_invalid"
+    if payload.get("network") != "disabled" or payload.get("persistent_guest_disk") is not False:
+        return "unexpected_guest_configuration"
+    if type(payload.get("exit_code")) is not int or payload["exit_code"] != 0:
+        return "qemu_error"
+    if profile == "experiment" and (
+        payload.get("experiment_passed") is not True
+        or payload.get("known_answers_verified") is not True
+        or payload.get("workload") != "fixed_arithmetic_sha256_v1"
+    ):
+        return "known_answer_mismatch"
+    if profile == "boot" and payload.get("guest_booted") is not True:
+        return "boot_validation_failed"
+    if returncode != 0:
+        return "probe_nonzero_exit"
+    return "unknown_failed_invariant"
 
 def write_json(path: Path, value: dict) -> None:
     temp = path.with_name(path.name + ".tmp")
@@ -186,6 +264,9 @@ def run_lifecycle(cycles: int, *, probe: Path = DEFAULT_PROBE,
         start = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         directory = Path(tempfile.mkdtemp(dir=runs, prefix=f"run-{start}-"))
         os.chmod(directory, 0o700)
+        # Created before launching any guest: interrupted series remain
+        # identifiable without guessing missing state after a crash.
+        write_json(directory / "run.json", run_manifest(profile, cycles, probe))
         results = []
         for index in range(1, cycles + 1):
             outcome, log = ((cycle_fn(probe=probe, timeout=timeout, profile=profile))
