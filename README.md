@@ -170,6 +170,19 @@ tests, durable queue reconciliation, and recovery verification are complete.
 - Workflows are version controlled. Changes to execution behavior require normal code review, not AI-generated unsupervised steps.
 - Back up `/var/lib/dagu` and `/srv/isolab` using a private, access-controlled backup destination. Apply OS security updates regularly and perform a tested restoration before enabling real experiments.
 
+## Research intelligence (v0.2 proposal)
+
+The planned v0.2 upgrade adds deterministic, offline research-fit scores,
+historical/established/recent labels, same-CVE deduplication across advisory
+feeds, and metadata-only links based on explicit CVE citations or shared
+allowlisted upstream commit URLs. These are **unverified leads**, not
+vulnerability reproductions or verified patches. The workflow remains
+metadata-only and the Dagu deployment lock remains intact.
+
+See [Research Intelligence](docs/RESEARCH_INTELLIGENCE.md) for migration,
+backups, new report fields and limitations. v0.1.0 remains the production
+release until this pull request is reviewed, merged and explicitly released.
+
 ## Next implementation milestones
 
 1. Add image/configuration scanners in a separate low-privilege test environment (e.g., offline Trivy SBOM scans); pin versions and isolate image inputs.

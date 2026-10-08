@@ -170,6 +170,14 @@
         group: root
       notify: Restart Dagu
 
+    - name: Install research intelligence module
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../app/intelligence.py"
+        dest: /opt/isolab/app/intelligence.py
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Install reviewed research coordinator code
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../app/isolab.py"
