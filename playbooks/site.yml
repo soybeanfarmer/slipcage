@@ -476,6 +476,22 @@
         group: root
         mode: '0644'
 
+    - name: Install manual guest-free fault drill runner
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-fault-drill.py"
+        dest: /usr/local/lib/slipcage/fault-drill.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install disabled-by-default manual fault drill template
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-fault-drill@.service"
+        dest: /etc/systemd/system/slipcage-fault-drill@.service
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Restrict offsite-credential directory
       ansible.builtin.file:
         path: /etc/slipcage

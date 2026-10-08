@@ -144,6 +144,20 @@ No guest workload schedules, fuzzing, security-boundary tests, automated
 cleanup of interrupted runs, or encrypted off-server backups are added.
 Local backups and metadata-only research jobs continue unchanged.
 
+## v0.8 Controlled Failure Recovery (proposal)
+
+Adds a **manual-only, guest-free** drill for process-group timeout
+cleanup, synthetic interrupted report auditing, and reading kernel
+cgroup v2 resource limits **without exhausting those limits**.
+The new service runs as an unprivileged account, with no KVM access,
+no network, bounded CPU/memory/tasks and private isolated records.
+
+See [Controlled Failure Recovery](docs/CONTROLLED_FAILURE_RECOVERY.md)
+for operator commands and remaining limitations. No scheduled tests,
+new guest experiments, fuzzing or real failure injection are enabled.
+Daily local backups remain unchanged; encrypted off-server backups
+stay deferred.
+
 ## Useful commands
 
 ```bash
