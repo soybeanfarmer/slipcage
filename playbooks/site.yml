@@ -1,0 +1,188 @@
+---
+- name: Install isolated vulnerability research control plane
+  hosts: research
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/all.yml"
+
+  pre_tasks:
+    - name: Require Ubuntu 24.04 x86-64
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] == '24.04'
+          - ansible_facts['architecture'] == 'x86_64'
+        fail_msg: "Use the Ubuntu 24.04 LTS x86-64 image; adjust and test for other platforms."
+
+  tasks:
+    - name: Install core packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - git
+          - python3
+          - python3-venv
+          - python3-pip
+          - sqlite3
+          - jq
+          - unzip
+          - tar
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install optional QEMU analysis and build tools
+      ansible.builtin.apt:
+        name:
+          - clang
+          - gcc
+          - g++
+          - make
+          - ninja-build
+          - meson
+          - pkg-config
+          - libglib2.0-dev
+          - libpixman-1-dev
+          - qemu-system-x86
+          - qemu-utils
+          - gdb
+        state: present
+      when: install_research_toolchain | bool
+
+    - name: Create locked-down research group
+      ansible.builtin.group:
+        name: "{{ research_group }}"
+        system: true
+
+    - name: Create unprivileged research user
+      ansible.builtin.user:
+        name: "{{ research_user }}"
+        group: "{{ research_group }}"
+        shell: /usr/sbin/nologin
+        home: /var/lib/isolab
+        create_home: false
+        system: true
+        password_lock: true
+
+    - name: Create application directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: '/opt/isolab', owner: 'root', group: 'root', mode: '0755' }
+        - { path: '/opt/isolab/app', owner: 'root', group: 'root', mode: '0755' }
+        - { path: '/opt/isolab/vendor', owner: 'root', group: 'root', mode: '0755' }
+        - { path: '/srv/isolab', owner: 'isolab', group: 'isolab', mode: '0700' }
+        - { path: '/srv/isolab/reports', owner: 'isolab', group: 'isolab', mode: '0700' }
+        - { path: '/var/lib/dagu', owner: 'isolab', group: 'isolab', mode: '0700' }
+        - { path: '/var/lib/dagu/dags', owner: 'isolab', group: 'isolab', mode: '0700' }
+        - { path: '/var/lib/dagu/data', owner: 'isolab', group: 'isolab', mode: '0700' }
+        - { path: '/var/lib/dagu/logs', owner: 'isolab', group: 'isolab', mode: '0700' }
+
+    - name: Download and verify pinned Dagu release
+      ansible.builtin.get_url:
+        url: "https://github.com/dagucloud/dagu/releases/download/v{{ dagu_version }}/dagu_{{ dagu_version }}_linux_amd64.tar.gz"
+        dest: "/opt/isolab/vendor/dagu_{{ dagu_version }}.tar.gz"
+        checksum: "sha256:{{ dagu_archive_sha256 }}"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create pinned binary extraction folder
+      ansible.builtin.file:
+        path: "/opt/isolab/vendor/dagu-{{ dagu_version }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Extract Dagu
+      ansible.builtin.unarchive:
+        src: "/opt/isolab/vendor/dagu_{{ dagu_version }}.tar.gz"
+        dest: "/opt/isolab/vendor/dagu-{{ dagu_version }}"
+        remote_src: true
+        creates: "/opt/isolab/vendor/dagu-{{ dagu_version }}/dagu"
+
+    - name: Install Dagu binary
+      ansible.builtin.copy:
+        src: "/opt/isolab/vendor/dagu-{{ dagu_version }}/dagu"
+        remote_src: true
+        dest: /usr/local/bin/dagu
+        mode: '0755'
+        owner: root
+        group: root
+      notify: Restart Dagu
+
+    - name: Install reviewed research coordinator code
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../app/isolab.py"
+        dest: /opt/isolab/app/isolab.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install server verification helper
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/verify-server.sh"
+        dest: /opt/isolab/verify-server.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy Dagu configuration
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/dagu-config.yaml.j2"
+        dest: /var/lib/dagu/config.yaml
+        owner: isolab
+        group: isolab
+        mode: '0600'
+      notify: Restart Dagu
+
+    - name: Deploy reviewed workflows
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../workflows/"
+        dest: /var/lib/dagu/dags/
+        owner: isolab
+        group: isolab
+        mode: '0600'
+
+    - name: Deploy Dagu systemd service
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/dagu.service.j2"
+        dest: /etc/systemd/system/isolab-dagu.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart Dagu
+
+    - name: Enable Dagu service
+      ansible.builtin.systemd_service:
+        name: isolab-dagu.service
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    - name: Check Dagu version
+      ansible.builtin.command: /usr/local/bin/dagu version
+      changed_when: false
+      register: dagu_version_result
+
+    - name: Display final message
+      ansible.builtin.debug:
+        msg:
+          - "Dagu installed: {{ dagu_version_result.stdout }}"
+          - "Open an SSH tunnel: ssh -L 8525:127.0.0.1:8525 ubuntu@YOUR_SERVER_IP"
+          - "Then visit http://127.0.0.1:8525/setup and create the admin."
+          - "No external dashboard port is opened; no Docker socket is mounted."
+
+  handlers:
+    - name: Restart Dagu
+      ansible.builtin.systemd_service:
+        name: isolab-dagu.service
+        daemon_reload: true
+        state: restarted
