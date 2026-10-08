@@ -45,5 +45,13 @@ jobs:
           printf '%s\n' "$contents"
           printf '%s\n' "$contents" | grep -Fx init
           printf '%s\n' "$contents" | grep -Fx dev/console
+      - name: Build and inspect fixed experiment guest without booting
+        run: |
+          sudo bash scripts/build-experiment-guest.sh
+          gzip -t /usr/local/lib/slipcage/experiment-v1.cpio.gz
+          contents="$(gzip -dc /usr/local/lib/slipcage/experiment-v1.cpio.gz | cpio -it 2>/dev/null)"
+          printf '%s\n' "$contents" | grep -Fx init
+          printf '%s\n' "$contents" | grep -Fx dev/console
+          gzip -dc /usr/local/lib/slipcage/experiment-v1.cpio.gz | cpio -i --to-stdout init | sh -n
       - name: Validate Ansible syntax
         run: ansible-playbook -i inventory/hosts.ini.example playbooks/site.yml --syntax-check
