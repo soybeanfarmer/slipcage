@@ -65,6 +65,20 @@ destructive restore. See [Backup operations and limitations](docs/BACKUPS.md).
 **Same-VPS copies are not off-server disaster recovery** and omit Dagu history
 and future fuzzing corpora.
 
+## v0.3 Reliability and Recovery (proposed)
+
+New candidate reviews use SQLite-persisted delivery attempts and a
+15-minute guarded recovery timer. Old queued Dagu deliveries are safely
+fenced by a new token after timeouts. Workers that can still be identified
+as alive are never preempted. Legacy untracked jobs and ambiguous
+process states are surfaced for manual review rather than retried blindly.
+A non-destructive restore drill verifies the existing daily backup
+by reconstructing it in a separate directory. **No destructive automatic
+restore, reboot, exploit execution, or automatic release is added.**
+
+See [Recovery operations](docs/RECOVERY.md). The installed v0.2.1 release
+remains unchanged until a later manual production approval.
+
 ## Useful commands
 
 ```bash
