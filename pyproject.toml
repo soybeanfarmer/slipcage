@@ -24,4 +24,4 @@ where = ["src"]
 include = ["slipcage_engine*"]
 
 [tool.setuptools.package-data]
-slipcage_engine = ["schemas/*.json"]
+slipcage_engine = ["schemas/*.json", "fixtures/*.json"]

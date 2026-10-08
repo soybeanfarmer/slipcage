@@ -1,6 +1,6 @@
 # Slipcage offline experiment contract engine — v0.12 first implementation
 
-This contains the **first product-facing contract work** (SC-05/SC-06) and the **SC-07 typed assertion-result model**. It remains a local, non-executing Python package. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
+This includes SC-05/SC-06 contract validation, SC-07 typed results, and SC-08 **synthetic** fixture execution. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
 
 ## Install and run locally
 
@@ -85,6 +85,50 @@ replayable. The emitted `evidence_status: not_collected` is deliberate;
 never present this purely synthetic result as a proven security boundary.
 There is no CLI command to evaluate or produce these results yet.
 
+
+## SC-08: bounded offline fixture execution
+
+This release adds `slipcage run-fixture`, a **synthetic, local-only** interpreter
+for a finite set of prepackaged RBAC observation fixtures. It runs no real
+Kubernetes assertion, QEMU guest or external process. The `run`,
+`compare` and `report` commands continue to refuse execution.
+
+~~~bash
+slipcage run-fixture examples/experiments/rbac-pod-create-denied.yaml --scenario denied --json
+slipcage run-fixture examples/experiments/rbac-pod-create-denied.yaml --scenario allowed --json
+~~~
+
+The first command creates **synthetic PASS** data for the expected denial;
+the second creates **synthetic FAIL** data and deliberately exits nonzero.
+The only supported scenario names are `denied`, `allowed`, `ambiguous`,
+`error`, and `unsupported`. Scenario names are an enum, not filesystem
+paths, command strings or user-selected plugins.
+
+Outputs include `mode: synthetic_offline_fixture`, `simulated: true`,
+`security_test_executed: false`, and `evidence_status: not_collected`,
+plus immutable assertion results and SHA-256 content fingerprints of the
+validated specification and installed fixture bytes. Those hashes are not
+evidence signatures and the fixtures' "verified" observations are **synthetic
+claims**, not actual API verifications.
+
+A single call handles at most eight schema-declared assertions with a
+cooperative time deadline capped at five seconds and checks for a trusted
+in-process cancellation request before and after each assertion. Expired
+or cancelled calls leave unprocessed assertions absent; they cannot fabricate
+a successful security run. This time budget is **not OS-enforced isolation**
+and must be replaced by supervisor-enforced limits for real/blocking adapters.
+
+CLI exit codes for `run-fixture`: 0 when all synthetic assertions PASS,
+1 when any synthetic assertion is not PASS, 2 for invalid inputs or fixture
+data, and 4 for cancellation/deadline termination. Validating a definition
+still returns 0/2; unimplemented real `run`/`compare`/`report` return 3.
+
+For deterministic fault-injection tests, the Python `run_fixture` API
+accepts trusted `clock` and `cancelled` callables. Neither can be selected
+by experiment YAML/JSON or the CLI. Future SC-09 evidence bundles and SC-10
+comparison remain separately planned; do not call this an actual security
+regression or attempt to promote it as a Kubernetes runner.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
@@ -93,6 +137,6 @@ CI now installs the package in the ephemeral GitHub runner, validates the sample
 
 ## Next separately approved milestones
 
-SC-07 adds typed outcomes without a runner; SC-08 introduces a bounded, offline fixture executor; SC-09 canonical evidence bundles; SC-10 differential comparison; SC-11 reporting. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
+SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces canonical evidence bundles; SC-10 differential comparison; SC-11 reporting. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
 
 See [contract](EXPERIMENT_CONTRACT.md), [roadmap](V1_ROADMAP.md), [security rules](../SECURITY.md) and [human review/release gates](DEVELOPMENT_WORKFLOW.md).
