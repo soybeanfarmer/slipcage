@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+from importlib.machinery import SourceFileLoader
 import json
 import os
 from pathlib import Path
@@ -18,7 +19,11 @@ import tarfile
 import tempfile
 
 HERE = Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("slipcage_backup", HERE / "slipcage-backup.py")
+BACKUP_HELPER = HERE / "slipcage-backup.py"
+if not BACKUP_HELPER.is_file():
+    BACKUP_HELPER = HERE / "slipcage-backup"
+LOADER = SourceFileLoader("slipcage_backup", str(BACKUP_HELPER))
+SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
 backup = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(backup)
 
