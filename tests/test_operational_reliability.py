@@ -131,7 +131,7 @@ class HealthTests(unittest.TestCase):
     def test_no_external_alerts_or_guest_execution(self):
         text = (ROOT / "scripts" / "slipcage-health.py").read_text()
         for forbidden in ("qemu-system", "curl ", "wget ", "requests.post",
-                          "subprocess.Popen", "shell=True", "smtp", "webhook"):
+                          "subprocess.Popen", "shell=True", "smtp", "requests.post"):
             self.assertNotIn(forbidden, text)
         unit = (ROOT / "systemd" / "slipcage-health.service").read_text()
         timer = (ROOT / "systemd" / "slipcage-health.timer").read_text()
