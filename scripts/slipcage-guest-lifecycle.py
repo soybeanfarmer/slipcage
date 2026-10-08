@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime, timezone
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -96,10 +97,18 @@ def run_cycle(probe: Path = DEFAULT_PROBE, *,
             child.wait()
     log = output[-LOG_TAIL_BYTES:].decode("utf-8", errors="replace")
     payload = parse_boot_result(log, profile)
+    numeric_keys = ("wall_seconds", "cpu_user_seconds",
+                    "cpu_system_seconds", "qemu_peak_rss_kib")
+    resource_evidence_valid = (payload is not None and all(
+        type(payload.get(key)) in (int, float)
+        and math.isfinite(payload[key]) and payload[key] >= 0
+        for key in numeric_keys
+    ))
     agreed = (payload is not None and (
         payload.get("experiment_passed") is True
         and payload.get("known_answers_verified") is True
         and payload.get("workload") == "fixed_arithmetic_sha256_v1"
+        and resource_evidence_valid
         if profile == "experiment" else payload.get("guest_booted") is True
     ))
     passed = (
