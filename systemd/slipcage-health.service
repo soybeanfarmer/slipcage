@@ -22,7 +22,9 @@ ProtectKernelModules=yes
 ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-CapabilityBoundingSet=
+# Permit read-only traversal of 0700 root/vmprobe evidence directories.
+# No write, privilege-escalation, process-control, network or device capabilities.
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
 AmbientCapabilities=
 MemoryAccounting=yes
 MemoryMax=128M
