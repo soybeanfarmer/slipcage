@@ -1,6 +1,6 @@
 # Slipcage offline experiment contract engine — v0.12 first implementation
 
-This includes SC-05/SC-06 contract validation, SC-07 typed results, and SC-08 **synthetic** fixture execution. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
+This includes SC-05/SC-06 contract validation, SC-07 typed results, SC-08 **synthetic** fixture execution, and SC-09 private synthetic evidence bundles. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
 
 ## Install and run locally
 
@@ -129,6 +129,59 @@ by experiment YAML/JSON or the CLI. Future SC-09 evidence bundles and SC-10
 comparison remain separately planned; do not call this an actual security
 regression or attempt to promote it as a Kubernetes runner.
 
+
+## SC-09: private synthetic evidence bundles (local only)
+
+The engine now supports writing a **new** private evidence directory containing
+canonical experiment input, simulated assertion results, fixture provenance,
+SHA-256 checksums and a completion manifest. This is collection of **synthetic
+fixture artifacts**, **not** security evidence from a live Kubernetes system.
+
+~~~bash
+python -m pip install -e .
+slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml \
+  --scenario denied --output ./my-new-private-bundle --json
+slipcage verify-bundle ./my-new-private-bundle --json
+~~~
+
+The writer requires an existing trusted local parent directory. It refuses
+overwriting any existing path, creates its child directory mode 0700 and files
+mode 0600, and writes `manifest.json` **last**, so interrupted bundles remain
+incomplete and preserved. No automatic deletion, cleanup, or replacement is
+performed. A named symlink parent is rejected; intermediate ancestor paths
+must still be trusted and controlled by the operator.
+
+Example layout:
+
+~~~text
+my-new-private-bundle/
+  experiment.json  # validated canonical definition
+  results.json     # simulated fixture observations, never real API results
+  provenance.json  # locally installed engine/fixture identifiers
+  checksums.json   # sha256 checksums for the three content artifacts
+  manifest.json    # COMPLETE marker, hashes catalog, timestamp; written last
+~~~
+
+`verify-bundle` is read-only and refuses incomplete bundles, unexpected
+entries, symlinks, hard-linked/nonregular files, unsafe permissions, oversized
+data, invalid/noncanonical JSON, digest changes, or inconsistent provenance.
+It also replays the **installed packaged fixture** under the stored validated
+spec and requires the results to match byte-for-byte.
+
+Successful verification emits `verified_synthetic_bundle`,
+`simulated: true`, `security_test_executed: false`, and
+`real_security_evidence_verified: false`. Verification establishes
+**local structural/checksum consistency and fixture replay only**. A malicious
+party who can change files and checksums can forge an internally consistent
+bundle: no signature, remote attestation, trusted timestamp, identity proof,
+tenant access control, or Kubernetes API verification exists in SC-09.
+
+`bundle-fixture` returns 0 for successfully published synthetic bundles
+**regardless of PASS/FAIL/ERROR/SKIP/INCONCLUSIVE**, because its success is
+*artifact creation*, not assertion success. Invalid or incomplete bundles
+return 2. No generic file import, user-controlled logs, uploaded evidence,
+Cloudflare R2, off-server backup, or OS-level execution sandbox is enabled.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
@@ -137,6 +190,6 @@ CI now installs the package in the ephemeral GitHub runner, validates the sample
 
 ## Next separately approved milestones
 
-SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces canonical evidence bundles; SC-10 differential comparison; SC-11 reporting. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
+SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds differential comparison, and SC-11 adds reports. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
 
 See [contract](EXPERIMENT_CONTRACT.md), [roadmap](V1_ROADMAP.md), [security rules](../SECURITY.md) and [human review/release gates](DEVELOPMENT_WORKFLOW.md).

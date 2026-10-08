@@ -118,6 +118,21 @@ Results explicitly say `simulated: true`,
 This does not contact a Kubernetes API, launch a VM, or constitute verified
 security behavior. See [offline fixture execution](docs/ENGINE_CLI.md).
 
+SC-09 adds a local synthetic bundle writer/verifier, preserving only
+simulated results with bounded canonical JSON and private checksum-checked
+artifacts:
+
+~~~bash
+slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml \
+  --scenario denied --output ./new-synthetic-bundle --json
+slipcage verify-bundle ./new-synthetic-bundle --json
+~~~
+
+Verification confirms local integrity and replay against the packaged fixture,
+**not** genuine security behavior, secure authorship, or a real Kubernetes
+observation. Existing output directories are never overwritten. See
+[synthetic evidence limitations](docs/ENGINE_CLI.md).
+
 **Validation is not authorization.** The `run`, `compare`, and `report`
 commands currently refuse execution and return a nonzero exit status. The
 sample RBAC profile is schema data only; it does not provision VMs or Kubernetes,

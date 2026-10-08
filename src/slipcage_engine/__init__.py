@@ -15,10 +15,13 @@ from .fixture_executor import (
     run_fixture,
 )
 
+from .evidence import BundleError, BundleVerification, write_fixture_bundle, verify_bundle
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
     "ObservedDecision", "ObservationStatus", "ReasonCode", "ResultValidationError",
     "result_for_observation", "FixtureExecutionError", "FixtureRun",
     "FixtureRunState", "FixtureScenario", "run_fixture",
+    "BundleError", "BundleVerification", "write_fixture_bundle", "verify_bundle",
 ]
