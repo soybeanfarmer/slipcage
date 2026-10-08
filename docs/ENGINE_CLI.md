@@ -1,6 +1,6 @@
 # Slipcage offline experiment contract engine — v0.12 first implementation
 
-This includes SC-05/SC-06 contract validation, SC-07 typed results, SC-08 **synthetic** fixture execution, and SC-09 private synthetic evidence bundles. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
+This includes SC-05/SC-06 contract validation, SC-07 typed results, SC-08 **synthetic** fixture execution, SC-09 private synthetic evidence bundles, and SC-10 offline differential comparison. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
 
 ## Install and run locally
 
@@ -29,7 +29,7 @@ Expected JSON shape (digest value is computed, not shown as an illustrative cons
 }
 ~~~
 
-A successful validation returns exit code 0, invalid file/spec returns 2, and every unavailable action returns 3. Usage errors are handled by argparse (2). `slipcage run`, `slipcage compare` and `slipcage report` are deliberately fail-closed until their own separately reviewed milestones.
+A successful validation returns exit code 0, invalid file/spec returns 2, and unavailable real-workload actions return 3. Usage errors are handled by argparse (2). `slipcage run`, `slipcage compare` and `slipcage report` are deliberately fail-closed until their own separately reviewed milestones.
 
 ## Supported definition subset
 
@@ -182,6 +182,58 @@ tenant access control, or Kubernetes API verification exists in SC-09.
 return 2. No generic file import, user-controlled logs, uploaded evidence,
 Cloudflare R2, off-server backup, or OS-level execution sandbox is enabled.
 
+## SC-10: conservative synthetic differential comparison
+
+The new `slipcage compare-fixtures` command reads and re-verifies **two
+existing private SC-09 synthetic bundles**. It never modifies either bundle
+and does not launch experiments or collect real security evidence.
+
+~~~bash
+slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml \
+  --scenario denied --output ./baseline-fixture --json
+slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml \
+  --scenario allowed --output ./candidate-fixture --json
+slipcage compare-fixtures ./baseline-fixture ./candidate-fixture --json
+~~~
+
+That example produces `classification: regression` (a **synthetic** PASS
+versus synthetic FAIL). Both bundles must independently pass private layout,
+hash, spec and packaged-fixture replay checks, refer to different directory
+objects, and match the **same exact experiment spec digest**, fixture digest
+and assertion IDs/order. Different scenarios represent fixture test cases,
+**not baseline and candidate K3s clusters**. The two bundles may share a
+manifest digest if separately created with identical inputs in the same second:
+file identity, not digest equality, controls the same-bundle check.
+
+| Baseline | Candidate | Per-assertion classification |
+| --- | --- | --- |
+| PASS | PASS | `unchanged_pass` |
+| PASS | FAIL | `regression` |
+| FAIL | PASS | `improvement` |
+| FAIL | FAIL | `unchanged_fail` |
+| Any ERROR, SKIP or INCONCLUSIVE | Any, or vice versa | `incomparable` |
+
+Missing, corrupted or incompatible bundles are always **incomparable**;
+they never become observed regressions. The comparison emits a stable
+`slipcage.dev/fixture-comparison/v1alpha1` JSON representation with per-
+assertion classifications and a conservative aggregate. If an aggregate
+contains both regression and improvement, it is `mixed_change`. If **any**
+assertion is incomparable, the aggregate is incomparable even when other
+assertions were comparable.
+
+CLI exit codes for `compare-fixtures`:
+- `0` — comparable with no regression (improvement or unchanged).
+- `1` — comparable with a **synthetic regression present**, including mixed.
+- `4` — incomparable (missing, invalid, incompatible or uncertain inputs).
+- `2` — invalid command usage.
+
+Importantly, the generic `slipcage compare`, `run` and `report` remain
+**disabled** and return code 3. A successful synthetic comparison does not
+verify real environment provenance, authorized Kubernetes behavior, evidence
+authorship, or separate infrastructure isolation. Output explicitly states
+`simulated: true`, `security_test_executed: false`, and
+`real_security_evidence_verified: false`.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
@@ -190,6 +242,6 @@ CI now installs the package in the ephemeral GitHub runner, validates the sample
 
 ## Next separately approved milestones
 
-SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds differential comparison, and SC-11 adds reports. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
+SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds synthetic, evidence-gated differential comparison; SC-11 adds human-readable reports and integrated offline workflow. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
 
 See [contract](EXPERIMENT_CONTRACT.md), [roadmap](V1_ROADMAP.md), [security rules](../SECURITY.md) and [human review/release gates](DEVELOPMENT_WORKFLOW.md).

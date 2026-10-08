@@ -1,6 +1,6 @@
 # Proposed experiment and evidence contracts (design only)
 
-**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; SC-09 adds **local synthetic-only** evidence bundles and read-only verification. No real assertion executor, comparison/report engine, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
+**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; SC-09 adds **local synthetic-only** evidence bundles and read-only verification. SC-10 now implements **synthetic evidence-gated differential comparison**. No real Kubernetes executor, environment-to-environment comparator, report generator, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
 
 ## Goals and boundary
 
@@ -97,6 +97,17 @@ The result explicitly states `real_security_evidence_verified: false`.
 These files contain no real Kubernetes API observations, guest provenance,
 real run IDs, signed attestation, or project authorization. See
 [SC-09 CLI details](ENGINE_CLI.md).
+
+### SC-10 — implemented synthetic comparison subset
+
+`compare_fixture_bundles(baseline, candidate)` and
+`slipcage compare-fixtures` reverify both private synthetic bundles before
+normalizing PASS/FAIL into `unchanged_pass`, `regression`, `improvement`,
+or `unchanged_fail`. A pair with PASS/FAIL and FAIL/PASS assertions is
+`mixed_change`; missing, corrupted, inconsistent or unsupported observations
+are `incomparable`. The real `compare` CLI remains disabled. Every output
+explicitly says it is synthetic and does **not** verify real Kubernetes
+security behavior. See [offline comparator rules](ENGINE_CLI.md).
 
 ## Minimum evidence bundle (proposed)
 

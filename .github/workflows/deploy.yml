@@ -41,6 +41,24 @@ jobs:
           fixture_scratch="$(mktemp -d)"
           slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml --scenario denied --output "$fixture_scratch/bundle" --json
           slipcage verify-bundle "$fixture_scratch/bundle" --json
+          slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml --scenario allowed --output "$fixture_scratch/candidate" --json
+          python - "$fixture_scratch/bundle" "$fixture_scratch/candidate" <<'PYCODE'
+          import json
+          import subprocess
+          import sys
+
+          result = subprocess.run(
+              ["slipcage", "compare-fixtures", sys.argv[1], sys.argv[2], "--json"],
+              capture_output=True, text=True, check=False,
+          )
+          assert result.returncode == 1, (result.returncode, result.stderr)
+          comparison = json.loads(result.stdout)
+          assert comparison["classification"] == "regression", comparison
+          assert comparison["comparison_status"] == "comparable"
+          assert comparison["simulated"] is True
+          assert comparison["security_test_executed"] is False
+          assert comparison["real_security_evidence_verified"] is False
+          PYCODE
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

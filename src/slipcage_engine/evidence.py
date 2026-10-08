@@ -55,6 +55,7 @@ class BundleVerification:
     spec_digest_sha256: str
     fixture_digest_sha256: str
     scenario: str
+    assertion_ids: tuple[str, ...]
     outcomes: tuple[str, ...]
     manifest_digest_sha256: str
 
@@ -66,6 +67,7 @@ class BundleVerification:
             "spec_digest_sha256": self.spec_digest_sha256,
             "fixture_digest_sha256": self.fixture_digest_sha256,
             "scenario": self.scenario,
+            "assertion_ids": list(self.assertion_ids),
             "outcomes": list(self.outcomes),
             "manifest_digest_sha256": self.manifest_digest_sha256,
             "integrity_check": "local_checksums_and_packaged_fixture_replay",
@@ -331,6 +333,7 @@ def verify_bundle(directory: str | Path) -> BundleVerification:
         spec_digest_sha256=spec.digest_sha256,
         fixture_digest_sha256=replay.fixture_digest_sha256,
         scenario=scenario,
+        assertion_ids=tuple(result.assertion_id for result in replay.results),
         outcomes=tuple(result.outcome.value for result in replay.results),
         manifest_digest_sha256=_digest(data["manifest.json"]),
     )
