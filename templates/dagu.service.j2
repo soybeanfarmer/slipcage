@@ -1,0 +1,41 @@
+[Unit]
+Description=Isolation Research Lab Dagu workflow engine
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User={{ research_user }}
+Group={{ research_group }}
+WorkingDirectory={{ lab_dagu_home }}
+Environment=DAGU_HOME={{ lab_dagu_home }}
+Environment=DAGU_DAGS_DIR={{ lab_dagu_home }}/dags
+Environment=DAGU_DATA_DIR={{ lab_dagu_home }}/data
+Environment=DAGU_LOG_DIR={{ lab_dagu_home }}/logs
+Environment=DAGU_HOST={{ lab_dashboard_bind }}
+Environment=DAGU_PORT={{ lab_dashboard_port }}
+Environment=DAGU_AUTH_MODE=builtin
+Environment=DAGU_COORDINATOR_ENABLED=false
+Environment=DAGU_SKIP_EXAMPLES=true
+ExecStart=/usr/local/bin/dagu start-all
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ lab_dagu_home }} {{ lab_data }}
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryAccounting=true
+MemoryMax={{ lab_memory_max }}
+CPUAccounting=true
+CPUQuota={{ lab_cpu_quota }}
+TasksMax=512
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Slipcage pull-based release deployment
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/local/sbin/slipcage-pull-deploy
+TimeoutStartSec=3h
+Nice=15
+
+[Install]
+WantedBy=multi-user.target
