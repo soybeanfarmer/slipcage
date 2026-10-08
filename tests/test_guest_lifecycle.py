@@ -146,7 +146,7 @@ class GuestLifecycleTests(unittest.TestCase):
         self.assertNotIn("WantedBy=", unit)
         self.assertNotIn("enabled: true", playbook.split(
             "- name: Install manual only nested guest cycle template")[1].split(
-            "- name: Restrict offsite-credential directory")[0])
+            "\n    - name: ", 1)[0])
         self.assertNotIn("slipcage-guest-cycles@", (
             ROOT / "scripts" / "discover.sh").read_text())
 

@@ -140,7 +140,7 @@ class FaultDrillTests(unittest.TestCase):
         self.assertNotIn("RuntimeMaxSec=", text)
         self.assertNotIn("enabled: true", playbook.split(
             "- name: Install disabled-by-default manual fault drill template")[1].split(
-            "- name: Restrict offsite-credential directory")[0])
+            "\n    - name: ", 1)[0])
 
     def test_safety_no_unsafe_external_payloads_or_vms(self):
         source = SCRIPT.read_text()

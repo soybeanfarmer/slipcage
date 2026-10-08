@@ -1,0 +1,35 @@
+[Unit]
+Description=Slipcage passive operational health snapshot and local journal alerts
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /usr/local/lib/slipcage/health.py --persist
+TimeoutStartSec=25s
+UMask=0077
+StateDirectory=slipcage-health
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryAccounting=yes
+MemoryMax=128M
+CPUAccounting=yes
+CPUQuota=25%
+TasksMax=16
+LimitNOFILE=128
+LimitFSIZE=1M
+StandardOutput=journal
+StandardError=journal
