@@ -33,5 +33,17 @@ jobs:
               yaml.safe_load(path.read_text())
               print(f'validated {path}')
           PYCODE
+      - name: Build the benign initramfs in CI (never boot a guest)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq busybox-static cpio
+          sudo install -d -m 0755 /usr/local/lib/slipcage
+          sudo bash scripts/build-microguest.sh
+          gzip -t /usr/local/lib/slipcage/microguest.cpio.gz
+          # cpio lists these paths without ./ on Ubuntu 24.04.
+          contents="$(gzip -dc /usr/local/lib/slipcage/microguest.cpio.gz | cpio -it 2>/dev/null)"
+          printf '%s\n' "$contents"
+          printf '%s\n' "$contents" | grep -Fx init
+          printf '%s\n' "$contents" | grep -Fx dev/console
       - name: Validate Ansible syntax
         run: ansible-playbook -i inventory/hosts.ini.example playbooks/site.yml --syntax-check

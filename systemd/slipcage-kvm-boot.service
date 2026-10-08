@@ -1,0 +1,34 @@
+[Unit]
+Description=Slipcage manual bounded Linux microguest boot (NO network or disk)
+After=local-fs.target
+ConditionPathExists=/dev/kvm
+
+[Service]
+Type=oneshot
+User=slipcage-vmprobe
+Group=slipcage-vmprobe
+SupplementaryGroups=kvm
+ExecStart=/usr/bin/python3 /usr/local/lib/slipcage/kvm-probe.py --boot
+TimeoutStartSec=95s
+RuntimeMaxSec=100s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+DevicePolicy=closed
+DeviceAllow=/dev/kvm rw
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryAccounting=yes
+MemoryMax=1280M
+CPUAccounting=yes
+CPUQuota=100%
+TasksMax=64
+LimitNOFILE=1024

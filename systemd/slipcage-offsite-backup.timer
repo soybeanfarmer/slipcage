@@ -1,0 +1,11 @@
+[Unit]
+Description=Encrypted off-server Slipcage backup, manually enabled only
+
+[Timer]
+OnCalendar=*-*-* 05:15:00 UTC
+RandomizedDelaySec=30min
+Persistent=true
+Unit=slipcage-offsite-backup.service
+
+[Install]
+WantedBy=timers.target
