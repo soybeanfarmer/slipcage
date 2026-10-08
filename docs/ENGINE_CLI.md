@@ -438,6 +438,28 @@ systemd, cgroups, disk quotas, process watchdogs or persistent OS locks**.
 No guest is started and no disk is written. See
 [SC-13b5 lifecycle supervision contract](VM_SUPERVISION_CONTRACT.md).
 
+## SC-13b6 — Private local VM staging and quarantine (no guest)
+
+The new `stage-vm-reservation` CLI makes a tiny **permanent, append-only
+reservation record** in one existing private development root, and
+`inspect-vm-reservation` can validate it read-only. Optional
+`quarantine-vm-reservation` appends a non-clearable review marker:
+
+~~~bash
+slipcage stage-vm-reservation /private/operator-plan.json \
+  --assets-dir /private/operator-assets \
+  --root /private/newly-approved-development-root --attempt baseline --json
+slipcage inspect-vm-reservation /private/newly-approved-development-root --json
+~~~
+
+**Development-only local storage writes:** no overlay, guest, QEMU, systemd,
+network or production VPS change. The fixed slot is never removed or reused,
+including after incomplete/crashed publication. The staging marker is **not
+a host-wide exclusive lease**, and no OS cgroup/watchdog/cleanup runs.
+Do not use existing production data paths or run it on the VPS without
+separate explicit approval. See
+[SC-13b6 local reservation safety contract](VM_PRIVATE_RESERVATION.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

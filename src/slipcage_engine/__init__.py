@@ -62,6 +62,12 @@ from .vm_supervision import (
     simulate_supervision, simulate_supervision_pair,
 )
 
+from .vm_reservation import (
+    ReservationError, QuarantineReason, LocalReservation,
+    stage_local_reservation, inspect_local_reservation,
+    quarantine_local_reservation,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -90,4 +96,7 @@ __all__ = [
     "SupervisionOutcome", "SupervisionScenario", "SupervisorDesign",
     "SupervisorAuditEvent", "SupervisionJournal", "design_supervision",
     "new_journal", "transition", "simulate_supervision", "simulate_supervision_pair",
+    "ReservationError", "QuarantineReason", "LocalReservation",
+    "stage_local_reservation", "inspect_local_reservation",
+    "quarantine_local_reservation",
 ]

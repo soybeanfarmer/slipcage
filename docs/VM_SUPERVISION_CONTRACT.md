@@ -67,3 +67,7 @@ Nothing here satisfies the original live SC-13 disposable QEMU guest acceptance.
 7. Manual human review/merge and separately approved release. The **owner** must explicitly authorize a single bounded live benign guest validation and manually run approved VPS commands, then share deployed SHA, journals and resource/cleanup evidence. Do not equate green CI or a simulated cleanup result with live acceptance.
 
 No release, SSH action, VPS inspection, VM start, storage or networking change is authorized by this PR. See [QEMU blueprint](QEMU_BLUEPRINT.md), [VM lifecycle](VM_LIFECYCLE_DESIGN.md) and [roadmap](V1_ROADMAP.md).
+
+## SC-13b6 — Local append-only reservation records
+
+[SC-13b6](VM_PRIVATE_RESERVATION.md) adds a fixed single-slot, privately staged filesystem marker with final integrity manifest and optional permanent quarantine reason. It makes **small, deliberate development-only writes** inside a chosen new scratch root, but neither creates a QEMU overlay nor enforces a global guest lease or cleanup. The SC-13b5 journal remains in-memory, and the real host supervision/VM approval gates in Issues #23 and #25 remain open.
