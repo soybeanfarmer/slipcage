@@ -1,0 +1,26 @@
+{
+  "api_version": "slipcage.dev/fixture/v1alpha1",
+  "profile_id": "kubernetes.rbac",
+  "scenarios": {
+    "denied": {
+      "status": "verified",
+      "decision": "denied"
+    },
+    "allowed": {
+      "status": "verified",
+      "decision": "allowed"
+    },
+    "ambiguous": {
+      "status": "ambiguous",
+      "decision": null
+    },
+    "error": {
+      "status": "execution_error",
+      "decision": null
+    },
+    "unsupported": {
+      "status": "unsupported",
+      "decision": null
+    }
+  }
+}

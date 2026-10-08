@@ -1,6 +1,6 @@
 # Proposed experiment and evidence contracts (design only)
 
-**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. No executor, comparison/report engine, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
+**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; no real assertion executor, comparison/report engine, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
 
 ## Goals and boundary
 
@@ -75,6 +75,16 @@ A security assertion is not a process exit code. A Kubernetes 403 can be a **PAS
 - `incomparable`: either side ERROR, SKIP, INCONCLUSIVE, missing/invalid evidence, incompatible assertion contract or unsupported comparison.
 
 Preserve the two raw outcomes alongside the classification. Future policy may distinguish *expected changed behavior* from an undesirable regression, but the raw difference must be preserved.
+
+### Synthetic fixture results (SC-08)
+
+`slipcage run-fixture` accepts the validated definition and one of five
+bundled observation scenarios. It emits deterministic, explicit
+`synthetic_offline_fixture` results (including cancellation/deadline state)
+with `security_test_executed: false` and `evidence_status: not_collected`.
+The fixture is not a Kubernetes adapter, does not authenticate an API
+observation, and does not provide independent evidence. Actual on-host
+workloads and evidence bundles remain separate approval milestones.
 
 ## Minimum evidence bundle (proposed)
 
