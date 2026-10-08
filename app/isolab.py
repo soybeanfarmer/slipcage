@@ -22,6 +22,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+import intelligence
+
 MATCHERS = {
     "hypervisor": re.compile(r"\b(qemu|kvm|virtualbox|hyper[- ]v)\b", re.I),
     "container": re.compile(r"\b(runc|containerd|moby|docker engine|docker daemon)\b", re.I),
@@ -48,7 +50,7 @@ CREATE TABLE IF NOT EXISTS candidates (
  UNIQUE(source, source_id)
 );
 CREATE INDEX IF NOT EXISTS candidates_status_score ON candidates(status, score DESC);
-"""
+""" + intelligence.SCHEMA
 
 
 def utc_now() -> str:
@@ -103,6 +105,11 @@ def record(conn: sqlite3.Connection, item: dict) -> bool:
          item["summary"][:8000], item["url"][:1000], track, score,
          item.get("published"), item.get("updated"), utc_now()),
     )
+    refs = item.get("references") or []
+    refs = [u for u in refs if isinstance(u, str) and len(u) <= 800][:30]
+    conn.execute("""INSERT INTO candidate_evidence(candidate_id,references_json)
+        VALUES (?, ?) ON CONFLICT(candidate_id) DO UPDATE SET
+        references_json=excluded.references_json""", (candidate_id, json.dumps(refs)))
     return True
 
 
@@ -135,6 +142,10 @@ def github_items():
             "summary": obj.get("description") or "",
             "url": obj.get("html_url") or "https://github.com/advisories",
             "published": obj.get("published_at"), "updated": obj.get("updated_at"),
+            "references": [ref.get("url") if isinstance(ref, dict) else ref
+                           for ref in (obj.get("references") or [])
+                           if isinstance(ref, str) or
+                           (isinstance(ref, dict) and isinstance(ref.get("url"), str))],
         }
 
 
@@ -164,6 +175,8 @@ def nvd_items():
                 "title": cve_id + ": " + english[:240], "summary": english,
                 "url": "https://nvd.nist.gov/vuln/detail/" + cve_id,
                 "published": cve.get("published"), "updated": cve.get("lastModified"),
+                "references": [ref.get("url") for ref in (cve.get("references") or [])
+                               if isinstance(ref, dict) and isinstance(ref.get("url"), str)],
             }
         if params["startIndex"] + len(entries) >= int(data.get("totalResults", 0)) or not entries:
             break
@@ -187,6 +200,17 @@ def sync(db: str) -> int:
             print(f"WARNING: {label} ingest failed ({type(exc).__name__}: {exc})", file=sys.stderr)
     print(f"matched_total={total} failed_sources={failures}")
     return 1 if failures == 2 else 0
+
+
+def analyze(db: str) -> int:
+    conn = connect(db)
+    try:
+        with conn:
+            info = intelligence.analyze(conn)
+        print(f"intelligence_candidates={info['candidates']} duplicate_pending={info['duplicates']}")
+    finally:
+        conn.close()
+    return 0
 
 
 def enqueue(db: str, workflow: str, max_outstanding: int) -> int:
@@ -235,7 +259,8 @@ def report(db: str, output: str, candidate_id: str) -> int:
         f"- Track: `{row['track']}`\n- Priority score: `{row['score']}/100`\n"
         f"- CVE: `{row['cve'] or 'not supplied'}`\n"
         f"- Reference URL: {html.escape(row['reference_url'], quote=True)}\n"
-        f"- Date reviewed: `{utc_now()}`\n\n"
+        f"- Date reviewed: `{utc_now()}`\n\n" +
+        intelligence.report_section(conn, candidate_id) +
         "## Published summary\n\n" + safe(row["title"]) + "\n\n"
         "## Published technical description\n\n" + safe(row["summary"][:6000]) + "\n\n"
         "## Next actions (human reviewed)\n\n"
@@ -276,7 +301,7 @@ def status(db: str) -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
-    for name in ("sync", "enqueue", "report", "status"):
+    for name in ("sync", "analyze", "enqueue", "report", "status"):
         sub.add_parser(name).add_argument("--db", required=True)
     sub.add_parser("smoke").add_argument("--output", required=True)
     enq = sub.choices["enqueue"]
@@ -289,6 +314,8 @@ def main() -> int:
     try:
         if args.command == "sync":
             return sync(args.db)
+        if args.command == "analyze":
+            return analyze(args.db)
         if args.command == "enqueue":
             return enqueue(args.db, args.workflow, args.max_outstanding)
         if args.command == "report":
