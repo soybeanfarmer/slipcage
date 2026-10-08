@@ -164,7 +164,8 @@ class SyntheticReportsTests(unittest.TestCase):
 
     def test_untrusted_parent_or_symlink_root_rejected(self):
         parent = self.root / "world-readable"
-        parent.mkdir(mode=0o755)
+        parent.mkdir()
+        parent.chmod(0o755)  # CI runner umask may otherwise force 0700
         with self.assertRaises(DemoError):
             create_fixture_demo(self.spec, FixtureScenario.DENIED,
                                 FixtureScenario.ALLOWED, parent / "proof")
