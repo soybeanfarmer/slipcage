@@ -23,3 +23,18 @@ The guard cannot restrict arbitrary commands created by a compromised Dagu
 administrator and is not a sandbox. Durable queue recovery, artifact backup,
 and integration testing are required before deploying offensive or long-running
 experiments.
+
+## Future v1 platform security boundaries (planned, NOT currently deployed)
+
+This existing policy continues to apply to the metadata lab and manual benign QEMU tests. The proposed Kubernetes regression platform adds, but does not replace, those protections.
+
+- Control-plane API and authentication must be separated from experiment execution. Do not let web requests, advisory data or user-submitted YAML become arbitrary Dagu workflow commands, shell strings or unreviewed Python.
+- Only reviewed, non-destructive experiment profiles are allowed in initial hosted execution. Validation and worker-side authorization both enforce profile, project, environment and resource bounds.
+- A disposable dedicated VM per test environment is preferred for initial Kubernetes tests. K3s introduces disk and network requirements that need a separately approved isolation design and provider-compliant validation before first execution.
+- Every user/project access path must enforce tenant authorization, including job claims, API reads, evidence retrieval and deletion. Cloudflare Access by itself only gates the initial private beta.
+- Durable worker leases require fencing and cleanup reconciliation. A lost lease is not permission to run two mutable attempts concurrently.
+- Evidence must be private, bounded, sanitized and integrity-checked, and missing/inconsistent evidence must not yield a false security-regression claim. A SHA-256 digest alone is not a signature.
+- Multi-tenant launch requires verified worker isolation, quotas, negative authorization tests, privacy/retention policy, independent recovery capability and operator-approved failure drills.
+- Encrypted off-server backup service **remains disabled** unless separately authorized and tested; future production readiness does not implicitly authorize enabling it today.
+
+See [current and target architecture](docs/ARCHITECTURE.md), [experiment contract](docs/EXPERIMENT_CONTRACT.md), [development approval process](docs/DEVELOPMENT_WORKFLOW.md), and [milestones](docs/V1_ROADMAP.md).
