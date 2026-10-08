@@ -121,7 +121,8 @@ def claim_next(conn: sqlite3.Connection, limit: int, now: datetime | None = None
     return None
 
 
-def rollback_delivery(conn, candidate_id: str, token: str) -> None:
+def rollback_delivery(conn, candidate_id: str, token: str,
+                      *, ambiguous: bool = False) -> None:
     with conn:
         conn.execute("BEGIN IMMEDIATE")
         current = conn.execute(
@@ -130,8 +131,10 @@ def rollback_delivery(conn, candidate_id: str, token: str) -> None:
         if current and current["state"] == "queued" and current["token"] == token:
             conn.execute("UPDATE candidates SET status='pending',queued_at=NULL "
                          "WHERE id=? AND status='queued'", (candidate_id,))
-            conn.execute("UPDATE review_attempts SET state='delivery_failed' "
-                         "WHERE candidate_id=? AND token=?", (candidate_id, token))
+            conn.execute("""UPDATE review_attempts SET state='delivery_failed',
+                attempts=CASE WHEN ? THEN attempts ELSE MAX(0,attempts - 1) END
+                WHERE candidate_id=? AND token=?""",
+                (int(ambiguous), candidate_id, token))
 
 
 def enqueue(conn: sqlite3.Connection, workflow: str, limit: int,
@@ -151,7 +154,10 @@ def enqueue(conn: sqlite3.Connection, workflow: str, limit: int,
                    check=True, timeout=20, capture_output=True, text=True)
             submitted += 1
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
-            rollback_delivery(conn, candidate_id, token)
+            # Timeout is ambiguous: Dagu might already have accepted the job.
+            # Definite local/CLI failures must not exhaust the retry budget.
+            rollback_delivery(conn, candidate_id, token,
+                              ambiguous=isinstance(exc, subprocess.TimeoutExpired))
             failed += 1
             print(f"WARNING: delivery of {candidate_id[:12]} failed: {exc}", file=sys.stderr)
             # Avoid rapidly retrying a broken CLI or Dagu outage in the same run.
