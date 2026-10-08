@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -62,11 +63,14 @@ def systemctl_state(unit: str, verb: str, *, runner=subprocess.run) -> str:
 def backup_check(root: Path, now: datetime) -> dict:
     if root.is_symlink() or not root.is_dir():
         return {"ok": False, "reason": "missing_backup_directory"}
-    snapshots = sorted(
-        (p for p in root.iterdir() if BACKUP_PATTERN.fullmatch(p.name)
-         and not p.is_symlink() and p.is_dir()), key=lambda p: p.name,
-        reverse=True,
-    )
+    try:
+        snapshots = sorted(
+            (p for p in root.iterdir() if BACKUP_PATTERN.fullmatch(p.name)
+             and not p.is_symlink() and p.is_dir()), key=lambda p: p.name,
+            reverse=True,
+        )
+    except OSError:
+        return {"ok": False, "reason": "backup_directory_unreadable"}
     if not snapshots:
         return {"ok": False, "reason": "no_completed_backup"}
     latest = snapshots[0]
@@ -101,27 +105,31 @@ def backup_check(root: Path, now: datetime) -> dict:
 
 def stale_runs(root: Path, pattern: re.Pattern, now: datetime, *,
                summary_name: str = "summary.json") -> dict:
-    if not root.exists():
-        return {"stale_count": 0, "scanned": 0, "missing": True}
-    if root.is_symlink() or not root.is_dir():
-        return {"error": "unsafe_run_root"}
-    stale = 0
-    scanned = 0
-    for path in root.iterdir():
-        if not pattern.fullmatch(path.name):
-            continue
-        scanned += 1
-        if scanned > MAX_SCAN:
-            return {"error": "too_many_runs_to_scan", "scanned": scanned}
-        if path.is_symlink() or not path.is_dir():
-            return {"error": "unsafe_run_entry"}
-        if not (path / summary_name).is_file():
-            try:
+    try:
+        try:
+            meta = root.lstat()
+        except FileNotFoundError:
+            return {"stale_count": 0, "scanned": 0, "missing": True}
+        if not stat.S_ISDIR(meta.st_mode):
+            return {"error": "unsafe_run_root"}
+        stale = 0
+        scanned = 0
+        for path in root.iterdir():
+            if not pattern.fullmatch(path.name):
+                continue
+            scanned += 1
+            if scanned > MAX_SCAN:
+                return {"error": "too_many_runs_to_scan", "scanned": scanned}
+            if path.is_symlink() or not path.is_dir():
+                return {"error": "unsafe_run_entry"}
+            if not (path / summary_name).is_file():
                 if (now.timestamp() - path.stat().st_mtime) > STALE_H * 3600:
                     stale += 1
-            except OSError:
-                return {"error": "cannot_stat_run"}
-    return {"stale_count": stale, "scanned": scanned}
+        return {"stale_count": stale, "scanned": scanned}
+    except PermissionError:
+        return {"error": "permission_denied"}
+    except OSError:
+        return {"error": "cannot_scan_runs"}
 
 
 def inspect(*, now: datetime | None = None, disk_path: Path = Path("/"),
