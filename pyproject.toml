@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slipcage-engine"
+version = "0.1.0a1"
+description = "Offline-first, fail-closed Slipcage experiment contract foundation"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML==6.0.2",
+  "jsonschema==4.23.0",
+]
+
+[project.scripts]
+slipcage = "slipcage_engine.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["slipcage_engine*"]
+
+[tool.setuptools.package-data]
+slipcage_engine = ["schemas/*.json"]

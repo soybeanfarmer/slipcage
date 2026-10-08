@@ -87,13 +87,34 @@ The expected success evidence for local scratch-restore assurance includes `pass
 
 Current KVM tests are explicitly manual and non-adversarial; CI constructs guest images but does **not** boot QEMU or K3s.
 
+## Offline experiment contract CLI (first v0.12 code milestone)
+
+The separately installable `slipcage-engine` package introduces a **read-only**
+`slipcage validate` command. It verifies small YAML/JSON experiment definitions
+against a packaged v1alpha1 JSON Schema, rejects unknown profiles and unsafe
+or ambiguous syntax, and prints a deterministic SHA-256 of canonicalized data.
+
+~~~bash
+python3 -m pip install -e .
+slipcage validate examples/experiments/rbac-pod-create-denied.yaml --json
+# Alternatively: python3 -m slipcage_engine validate ... --json
+~~~
+
+**Validation is not authorization.** The `run`, `compare`, and `report`
+commands currently refuse execution and return a nonzero exit status. The
+sample RBAC profile is schema data only; it does not provision VMs or Kubernetes,
+connect to Cloudflare, or grant approval to run a workload. This package is
+*not installed on the VPS by the existing Ansible playbook*. See
+[contract CLI and limitations](docs/ENGINE_CLI.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:
 
 ~~~bash
+python3 -m pip install -e .
 python3 -m unittest discover -s tests -v
-python3 -m compileall -q app scripts tests
+python3 -m compileall -q app scripts src tests
 bash -n scripts/*.sh
 ansible-playbook -i inventory/hosts.ini.example playbooks/site.yml --syntax-check
 ~~~

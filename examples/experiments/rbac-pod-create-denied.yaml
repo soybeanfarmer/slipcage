@@ -1,0 +1,19 @@
+# Input-data fixture only; it does not launch a cluster or execute an assertion.
+api_version: slipcage.dev/v1alpha1
+kind: SecurityExperiment
+metadata:
+  id: kubernetes.rbac.pod-create-denied
+  version: 0.1.0
+profile:
+  id: kubernetes.rbac
+  pack_version: 0.1.0
+parameters:
+  namespace: slipcage-test
+  subject: restricted-service-account
+assertions:
+  - id: restricted-create-pod
+    operation: create_pod
+    expected: denied
+limits:
+  timeout_seconds: 120
+  max_artifact_bytes: 1048576

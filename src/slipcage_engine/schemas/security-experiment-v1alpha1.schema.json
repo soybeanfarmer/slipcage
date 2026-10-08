@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://slipcage.dev/schemas/security-experiment-v1alpha1.schema.json",
+  "title": "Slipcage reviewed-profile security experiment (definition only)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "api_version",
+    "kind",
+    "metadata",
+    "profile",
+    "parameters",
+    "assertions",
+    "limits"
+  ],
+  "properties": {
+    "api_version": {
+      "const": "slipcage.dev/v1alpha1"
+    },
+    "kind": {
+      "const": "SecurityExperiment"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^kubernetes\\.rbac\\.[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$",
+          "minLength": 16,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "maxLength": 32
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "pack_version"
+      ],
+      "properties": {
+        "id": {
+          "const": "kubernetes.rbac"
+        },
+        "pack_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "maxLength": 32
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "subject"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "pattern": "^slipcage-[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "subject": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        }
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "operation",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$",
+            "maxLength": 63
+          },
+          "operation": {
+            "const": "create_pod"
+          },
+          "expected": {
+            "type": "string",
+            "enum": [
+              "denied",
+              "allowed"
+            ]
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeout_seconds",
+        "max_artifact_bytes"
+      ],
+      "properties": {
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "max_artifact_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 8388608
+        }
+      }
+    }
+  }
+}

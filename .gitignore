@@ -18,3 +18,9 @@ artifacts/
 *.pfx
 *.tfstate
 *.tfstate.*
+
+# Local development artifacts for the packaged experiment engine
+*.egg-info/
+build/
+dist/
+.venv/
