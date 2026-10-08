@@ -7,5 +7,8 @@ params:
     required: true
 steps:
   - id: report
-    # Parameter IDs are validated as SHA-256 hex by the application.
-    run: /usr/bin/python3 /opt/isolab/app/isolab.py report --db /srv/isolab/research.sqlite3 --output /srv/isolab/reports --id "${params.candidate_id}"
+    # Structured arguments avoid evaluating candidate IDs in a shell.
+    action: exec
+    with:
+      command: /usr/local/bin/slipcage-guard
+      args: ["run", "/usr/bin/python3", "/opt/isolab/app/isolab.py", "report", "--db", "/srv/isolab/research.sqlite3", "--output", "/srv/isolab/reports", "--id", "${params.candidate_id}"]
