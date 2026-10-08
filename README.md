@@ -81,6 +81,54 @@ sudo ls -lha /srv/isolab/reports
 - `tests/`: offline unit tests; `python3 -m unittest discover -s tests -v`.
 - `docs/ARCHITECTURE.md`: current vs. planned deployment phases.
 
+## Safe deployments and GitHub Actions
+
+Slipcage **drains active research before every managed deployment**. All
+reviewed Dagu workflows invoke `/usr/local/bin/slipcage-guard run`, holding
+a shared POSIX lock for the entire command. Ansible first creates a root-owned
+maintenance marker, blocking new research, and waits for existing workers to
+release their locks (default: **7200 seconds**). Only then can installed code
+change. If draining times out, no installed application files are changed.
+
+Ansible applies pending service restarts, confirms Dagu is active, and removes
+maintenance **only after** a successful deployment. If a later installation
+step fails, maintenance deliberately stays enabled. Investigate before
+manually releasing it:
+
+```bash
+sudo /usr/local/bin/slipcage-guard end
+```
+
+A new job started during maintenance exits temporarily with status 75.
+Dagu may skip scheduled runs and queued metadata reviews might require
+reconciliation. Do not enable long-running fuzzing until durable queue
+recovery and real deployment integration tests have been completed.
+Administrator-created DAGs that bypass `slipcage-guard` are not protected.
+
+An unguarded existing installation must be migrated manually after confirming
+all its jobs are idle. Fresh servers install the barrier before Dagu starts.
+
+### CI/CD prerequisites
+
+`.github/workflows/deploy.yml` is **manual only** and restricted to `main`.
+Set up a `production` GitHub Environment with mandatory approval and access
+restricted to `main`. Create a Tailscale OIDC workload identity with the
+`auth_keys` permission, restricted to `tag:slipcage-ci`, and limit SSH
+access to the research VPS.
+
+Configure these environment secrets: `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE`,
+`DEPLOY_SSH_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`. Add environment variables
+`SLIPCAGE_TAILSCALE_HOST` and `SLIPCAGE_DEPLOY_USER`.
+
+Verify the server's SSH host key through a trusted channel; **never** blindly
+accept `ssh-keyscan` output. Use a dedicated deployment SSH key and tightly
+control the deploy user's sudo rights. The initial installer requires
+root-level package and service changes. Pin third-party GitHub actions to
+reviewed commit hashes before allowing unattended deployments.
+
+Deployment is not yet live-tested. It requires the server, network access,
+SSH credentials, and configured GitHub environment.
+
 ## Operations / controls
 
 - No Docker daemon socket, privileged container, dynamic shell from advisory metadata, SSH keys in repository, or automatic exploit execution.
