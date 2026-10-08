@@ -128,12 +128,23 @@ slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml \
 slipcage verify-bundle ./new-synthetic-bundle --json
 ~~~
 
+You can also compare two **independently created synthetic fixture bundles**
+without executing a real workload:
+
+~~~bash
+slipcage compare-fixtures ./baseline-fixture ./candidate-fixture --json
+~~~
+
+A synthetic baseline PASS and candidate FAIL is labeled `regression`;
+missing, damaged or incompatible bundles are `incomparable` instead.
+The generic real-environment `compare` command remains unavailable.
+
 Verification confirms local integrity and replay against the packaged fixture,
 **not** genuine security behavior, secure authorship, or a real Kubernetes
 observation. Existing output directories are never overwritten. See
 [synthetic evidence limitations](docs/ENGINE_CLI.md).
 
-**Validation is not authorization.** The `run`, `compare`, and `report`
+**Validation is not authorization.** The real-environment `run`, `compare`, and `report`
 commands currently refuse execution and return a nonzero exit status. The
 sample RBAC profile is schema data only; it does not provision VMs or Kubernetes,
 connect to Cloudflare, or grant approval to run a workload. This package is

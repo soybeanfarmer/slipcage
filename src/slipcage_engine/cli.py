@@ -12,6 +12,7 @@ from .fixture_executor import (
 )
 from .results import AssertionOutcome
 from .evidence import BundleError, write_fixture_bundle, verify_bundle
+from .comparison import ChangeKind, compare_fixture_bundles
 from .specification import SpecValidationError, load_spec
 
 EXIT_ASSERTION_NOT_PASS = 1
@@ -47,6 +48,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("directory", help="Existing private evidence directory")
     verify.add_argument("--json", action="store_true", help="Machine-readable verification summary")
 
+    compare = commands.add_parser("compare-fixtures", help="Compare two PRIVATE verified synthetic bundles only")
+    compare.add_argument("baseline", help="Private baseline bundle directory")
+    compare.add_argument("candidate", help="Private candidate bundle directory")
+    compare.add_argument("--json", action="store_true", help="Machine-readable synthetic comparison")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -62,7 +68,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "verify-bundle":
+        if args.command == "compare-fixtures":
+            comparison = compare_fixture_bundles(args.baseline, args.candidate)
+        elif args.command == "verify-bundle":
             verified = verify_bundle(args.directory)
         else:
             definition = load_spec(args.file)
@@ -73,6 +81,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (SpecValidationError, FixtureExecutionError, BundleError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "compare-fixtures":
+        if args.json:
+            print(comparison.canonical_json().decode("ascii"))
+        else:
+            print(
+                "SYNTHETIC FIXTURE COMPARISON ONLY; "
+                f"classification={comparison.classification.value}; "
+                f"reason={comparison.reason_code.value}; real security tests=0"
+            )
+        if not comparison.comparable:
+            return EXIT_INTERRUPTED  # 4: incomparable, never a verified regression
+        if comparison.classification in (ChangeKind.REGRESSION, ChangeKind.MIXED_CHANGE):
+            return EXIT_ASSERTION_NOT_PASS  # 1: synthetic regression present
+        return 0
 
     if args.command in ("bundle-fixture", "verify-bundle"):
         if args.json:

@@ -16,6 +16,10 @@ from .fixture_executor import (
 )
 
 from .evidence import BundleError, BundleVerification, write_fixture_bundle, verify_bundle
+from .comparison import (
+    AssertionDifference, ChangeKind, ComparisonReason, FixtureComparison,
+    compare_fixture_bundles,
+)
 
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
@@ -24,4 +28,6 @@ __all__ = [
     "result_for_observation", "FixtureExecutionError", "FixtureRun",
     "FixtureRunState", "FixtureScenario", "run_fixture",
     "BundleError", "BundleVerification", "write_fixture_bundle", "verify_bundle",
+    "AssertionDifference", "ChangeKind", "ComparisonReason", "FixtureComparison",
+    "compare_fixture_bundles",
 ]
