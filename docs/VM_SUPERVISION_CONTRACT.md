@@ -71,3 +71,7 @@ No release, SSH action, VPS inspection, VM start, storage or networking change i
 ## SC-13b6 — Local append-only reservation records
 
 [SC-13b6](VM_PRIVATE_RESERVATION.md) adds a fixed single-slot, privately staged filesystem marker with final integrity manifest and optional permanent quarantine reason. It makes **small, deliberate development-only writes** inside a chosen new scratch root, but neither creates a QEMU overlay nor enforces a global guest lease or cleanup. The SC-13b5 journal remains in-memory, and the real host supervision/VM approval gates in Issues #23 and #25 remain open.
+
+## SC-13b7 — Non-executing backing-image preflight
+
+[SC-13b7](VM_QCOW2_BASE_PREFLIGHT.md) binds the fixed private overlay-intent token to an operator-declared, locally hashed base QCOW2 file and conservative header fields, without creating a disk or checking its full metadata tree. OS-backed resource supervision, host leases, real backing-chain safety and verified cleanup remain unimplemented.

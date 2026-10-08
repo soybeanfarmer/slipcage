@@ -52,3 +52,7 @@ All positive output explicitly sets `real_host_exclusive_lease_enforced: false`,
 This staging work does **not** complete [trusted image/host gate #23](https://github.com/soybeanfarmer/slipcage/issues/23) or [real disposable VM lifecycle gate #25](https://github.com/soybeanfarmer/slipcage/issues/25). Before any live guest, the project still requires independently authenticated upstream software and actual asset bytes, operator-approved VPS capacity/nested KVM/provider evidence, a global/process-safe durable lease and crash reconciliation, inspected immutable backing disk with safe exclusive overlays, enforced systemd/cgroup quotas, hard process watchdog/kill/reap, bounded console/evidence handling, guest network isolation and explicit owner approval for one benign test.
 
 **Do not run this staging command on the VPS or an existing production data root** as part of PR review. No such action is authorized by this milestone. All human merge, release, deployment and host-execution gates remain separate.
+
+## SC-13b7 — Header-only QCOW2 base inspection
+
+The new [QCOW2 base/overlay-intent preflight](VM_QCOW2_BASE_PREFLIGHT.md) can read this permanent non-quarantined reservation, then check the private base image's entire declared hash and a narrow no-backing QCOW2 v3 header shape. It makes **no** new overlay and cannot clear quarantine or certify a real backing chain.

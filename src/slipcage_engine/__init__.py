@@ -68,6 +68,10 @@ from .vm_reservation import (
     quarantine_local_reservation,
 )
 
+from .vm_overlay_preflight import (
+    OverlayPreflightError, OverlayIntentPreflight, inspect_overlay_intent,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -99,4 +103,5 @@ __all__ = [
     "ReservationError", "QuarantineReason", "LocalReservation",
     "stage_local_reservation", "inspect_local_reservation",
     "quarantine_local_reservation",
+    "OverlayPreflightError", "OverlayIntentPreflight", "inspect_overlay_intent",
 ]
