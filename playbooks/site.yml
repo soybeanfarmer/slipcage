@@ -452,6 +452,30 @@
         group: root
         mode: '0644'
 
+    - name: Install read-only guest evidence audit tool
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-experiment-audit.py"
+        dest: /usr/local/lib/slipcage/experiment-audit.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install passive runtime quota configuration check
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-limits-check.py"
+        dest: /usr/local/lib/slipcage/limits-check.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install manual read-only guest evidence audit unit
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-experiment-audit.service"
+        dest: /etc/systemd/system/slipcage-experiment-audit.service
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Restrict offsite-credential directory
       ansible.builtin.file:
         path: /etc/slipcage

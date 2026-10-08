@@ -126,6 +126,24 @@ Your existing local backups remain unchanged. Encrypted off-server backup
 setup remains deferred, and these disposable experiment logs are not
 included in the daily backups.
 
+## v0.7 Experiment Observability and Safety (proposed)
+
+Adds **manual read-only audits** of disposable guest runs, with per-cycle
+evidence consistency checks, SHA-256 fingerprints, deterministic Markdown
+and JSON summaries, and identification of possibly active versus
+interrupted/incomplete runs. New runs record a manifest before launching
+a guest and classify failures without relaxing existing timeouts or
+resource quotas.
+
+A passive systemd quota checker detects unexpected configuration changes
+**without allocating guest CPU/memory or starting QEMU**. See
+[Experiment Observability](docs/EXPERIMENT_OBSERVABILITY.md) for operator
+commands and limits.
+
+No guest workload schedules, fuzzing, security-boundary tests, automated
+cleanup of interrupted runs, or encrypted off-server backups are added.
+Local backups and metadata-only research jobs continue unchanged.
+
 ## Useful commands
 
 ```bash
