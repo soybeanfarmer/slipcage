@@ -38,3 +38,7 @@ The evaluator does not inspect /dev/kvm, SSH into VPS, collect host metrics, ben
 - Require owner review/merge, separate release approval and **separately authorized single benign live VM test** executed by the owner over SSH. Compare deployed SHA and operator-supplied logs. No such approval or execution is implied here.
 
 The original real SC-13 lifecycle milestone remains open under [Issue #25](https://github.com/soybeanfarmer/slipcage/issues/25), with real pin/host prerequisites under [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23).
+
+## SC-13b3 — Operator-only local host fact collection
+
+The new [read-only host observation command](VM_HOST_OBSERVATION.md) can collect bounded Linux CPU, MemAvailable, disk/inodes and basic KVM/cgroup presence **only when explicitly invoked locally by the operator**. No actual VPS observations have been collected, and the output deliberately cannot attest nested KVM usability, provider scope or guest readiness. Issue #23 and #25 remain open.

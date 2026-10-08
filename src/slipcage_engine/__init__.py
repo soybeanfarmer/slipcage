@@ -46,6 +46,10 @@ from .vm_host_readiness import (
     validate_host_snapshot_bytes, load_host_snapshot, assess_host_snapshot,
 )
 
+from .vm_host_observe import (
+    HostObservationError, LocalHostObservation, inspect_local_host,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -67,4 +71,5 @@ __all__ = [
     "VMProvenanceError", "VMProvenanceCheck", "verify_provenance",
     "VMHostReadinessError", "VMHostSnapshot", "HostReadinessAssessment",
     "validate_host_snapshot_bytes", "load_host_snapshot", "assess_host_snapshot",
+    "HostObservationError", "LocalHostObservation", "inspect_local_host",
 ]

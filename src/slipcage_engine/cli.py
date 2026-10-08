@@ -20,6 +20,7 @@ from .vm_plan import VMPlanError, assess_vm_plan, load_vm_plan, load_host_invent
 from .vm_assets import VMAssetError, verify_local_vm_assets
 from .vm_provenance import VMProvenanceError, verify_provenance
 from .vm_host_readiness import VMHostReadinessError, load_host_snapshot, assess_host_snapshot
+from .vm_host_observe import HostObservationError, inspect_local_host
 from .vm_lifecycle import (
     VMLifecycleError, VMSimulationScenario, VMFinalState, VMFailureReason,
     simulate_vm_lifecycle, simulate_sequential_pair,
@@ -122,6 +123,14 @@ def build_parser() -> argparse.ArgumentParser:
     readiness.add_argument("--snapshot", required=True, help="Operator-supplied host snapshot JSON")
     readiness.add_argument("--json", action="store_true")
 
+    observe = commands.add_parser(
+        "inspect-vm-host",
+        help="EXPLICIT manual read-only Linux host observation; no guest launch or approval"
+    )
+    observe.add_argument("file", help="Strict SC-12 VM plan")
+    observe.add_argument("--scratch-root", required=True, help="Existing selected local filesystem root; never created")
+    observe.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -137,7 +146,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "verify-vm-provenance":
+        if args.command == "inspect-vm-host":
+            vm_definition = load_vm_plan(args.file)
+            host_observation = inspect_local_host(vm_definition, args.scratch_root)
+        elif args.command == "verify-vm-provenance":
             vm_definition = load_vm_plan(args.file)
             provenance_result = verify_provenance(
                 vm_definition, args.statement, args.signature, args.public_key,
@@ -183,9 +195,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "inspect-vm-host":
+        if args.json:
+            print(host_observation.canonical_json().decode("ascii"))
+        else:
+            print("LOCAL HOST OBSERVATION ONLY; "
+                  f"observed_thresholds={host_observation.observed_thresholds}; "
+                  "kvm_usable_verified=false; execution_authorized=false")
+        return 0  # A read-only collection result; not readiness.
 
     if args.command == "verify-vm-provenance":
         if args.json:
