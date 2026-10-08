@@ -92,6 +92,26 @@ class ReadinessTests(unittest.TestCase):
                         kernel_path=kernel, initrd_path=initrd)
                     self.assertFalse(result["guest_booted"])
 
+    def test_kernel_is_staged_readable_without_chmodding_boot(self):
+        playbook = (ROOT / "playbooks" / "site.yml").read_text()
+        probe_script = (ROOT / "scripts" / "slipcage-kvm-probe.py").read_text()
+        self.assertIn('src: "/boot/vmlinuz-{{ ansible_facts[\'kernel\'] }}"', playbook)
+        self.assertIn('dest: "/usr/local/lib/slipcage/vmlinuz-{{ ansible_facts[\'kernel\'] }}"', playbook)
+        kernel_task = playbook.split(
+            "- name: Stage running Ubuntu kernel for unprivileged microguest boot")[1].split(
+            "- name: Install KVM readiness probe")[0]
+        self.assertIn("remote_src: true", kernel_task)
+        self.assertIn("owner: root", kernel_task)
+        self.assertIn("mode: '0644'", kernel_task)
+        self.assertIn('Path("/usr/local/lib/slipcage") / f"vmlinuz-{os.uname().release}"',
+                      probe_script)
+        self.assertNotIn('kernel = Path("/boot")', probe_script)
+        for name in ("slipcage-kvm-probe.service", "slipcage-kvm-boot.service"):
+            unit = (ROOT / "systemd" / name).read_text()
+            self.assertNotIn("RuntimeMaxSec=", unit)
+            self.assertIn("TimeoutStartSec=", unit)
+            self.assertIn("User=slipcage-vmprobe", unit)
+
     def test_systemd_probe_units_are_manual_and_resource_bounded(self):
         for name in ("slipcage-kvm-probe.service", "slipcage-kvm-boot.service"):
             text = (ROOT / "systemd" / name).read_text()

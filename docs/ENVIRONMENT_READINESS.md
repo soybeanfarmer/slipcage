@@ -45,12 +45,18 @@ TasksMax=64, and a short timeout.
 
 Ubuntu's busybox-static package and the installed kernel are used to build
 a tiny initramfs containing only a static shell and a minimal /init script.
+The running kernel is staged by Ansible from the often root-restricted
+/boot/vmlinuz-<kernel-version> into /usr/local/lib/slipcage/ as a root-owned,
+mode 0644 copy. The unprivileged QEMU probe reads that copy, never the
+original /boot file. The stage is refreshed by the next release deployment
+after a host kernel upgrade; if the VPS boots a newer kernel before then,
+rerun an approved deployment to populate its corresponding staged copy.
 No third-party guest images are downloaded. The guest is ephemeral:
 - 384 MiB RAM, one vCPU, and KVM-only (no TCG fallback)
 - no virtual disks, network interface, host directory shares or host mounts
 - a fixed kernel command line; emits SLIPCAGE_MICROGUEST_OK and powers off
 - same unprivileged sandbox as stage 2, with 1280M host cgroup memory
-  limit and a hard runtime cutoff (QEMU 75 sec / systemd 95 sec)
+  limit and a hard runtime cutoff (QEMU 75 sec / systemd oneshot start 95 sec)
 
 Run **only after the provider's terms permit benign nested guests**:
 
