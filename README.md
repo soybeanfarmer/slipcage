@@ -235,6 +235,25 @@ slipcage assess-vm-host /private/operator-plan.json --snapshot /private/host-sna
 
 The first verifies an Ed25519 signature *against a supplied raw public key* bound to all five asset digests and the plan. **Publisher key identity must be trusted independently**; the command cannot establish that trust, revocation, or upstream release authenticity. The second checks the operator's declared host headroom and KVM/cgroup flags **without accessing the VPS**, and cannot establish actual measured host readiness. Both commands always report execution_authorized=false and vm_launched=false. See [SC-13b2 trust and host gates](docs/VM_PROVENANCE_HOST_GATE.md).
 
+## SC-13b3 — Explicit read-only Linux host observation
+
+SC-13b3 provides a **manual, operator-invoked** `slipcage inspect-vm-host`
+command. It reads bounded Linux memory, visible CPU count, nominated scratch
+filesystem free space/inodes, and KVM-character-device/cgroup-v2 *presence*:
+
+~~~bash
+slipcage inspect-vm-host /path/to/operator-plan.json \
+  --scratch-root /path/to/existing-approved-scratch-directory --json
+~~~
+
+**Do not run this on the VPS until separately authorized.** No operator
+commands are executed by CI; unit tests use injected synthetic data and
+mocked host counters. The tool never boots guests, opens /dev/kvm, connects
+to the network, creates disks or changes host settings. Even a numerically
+favorable observation reports provider permission, KVM usability, cgroup
+quotas, active guest safety and execution authorization as **unverified/false**.
+See [SC-13b3 limitations and operator review](docs/VM_HOST_OBSERVATION.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:
