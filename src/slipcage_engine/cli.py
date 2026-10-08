@@ -126,17 +126,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             asset_report = verify_local_vm_assets(vm_definition, args.directory)
         elif args.command in ("simulate-vm-lifecycle", "simulate-vm-pair"):
             vm_definition = load_vm_plan(args.file)
-            if args.command == "verify-vm-artifacts":
-        if args.json:
-            print(asset_report.canonical_json().decode("ascii"))
-        else:
-            print("LOCAL SHA-256 BYTES MATCH UNTRUSTED VM PINS ONLY; "
-                  f"plan={asset_report.plan_id}; "
-                  "software_origin_authenticated=false; "
-                  "execution_authorized=false; vm_launched=false")
-        return 0  # Local byte equality ONLY, not a trusted/bootable environment.
-
-    if args.command == "simulate-vm-lifecycle":
+            if args.command == "simulate-vm-lifecycle":
                 vm_simulation = simulate_vm_lifecycle(
                     vm_definition, VMSimulationScenario(args.scenario)
                 )
@@ -172,6 +162,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "verify-vm-artifacts":
+        if args.json:
+            print(asset_report.canonical_json().decode("ascii"))
+        else:
+            print("LOCAL SHA-256 BYTES MATCH UNTRUSTED VM PINS ONLY; "
+                  f"plan={asset_report.plan_id}; "
+                  "software_origin_authenticated=false; "
+                  "execution_authorized=false; vm_launched=false")
+        return 0  # Local byte equality ONLY, not trusted runtime readiness.
 
     if args.command == "simulate-vm-lifecycle":
         if args.json:
