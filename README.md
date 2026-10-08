@@ -100,6 +100,12 @@ slipcage validate examples/experiments/rbac-pod-create-denied.yaml --json
 # Alternatively: python3 -m slipcage_engine validate ... --json
 ~~~
 
+The offline Python library also exposes immutable typed assertion outcomes
+(`PASS`, `FAIL`, `ERROR`, `SKIP`, `INCONCLUSIVE`) for SC-07. Those
+outcomes can be constructed from synthetic, typed observations, but are **not**
+evidence that Kubernetes was contacted or that any security assertion ran.
+See [typed outcome limitations](docs/ENGINE_CLI.md).
+
 **Validation is not authorization.** The `run`, `compare`, and `report`
 commands currently refuse execution and return a nonzero exit status. The
 sample RBAC profile is schema data only; it does not provision VMs or Kubernetes,

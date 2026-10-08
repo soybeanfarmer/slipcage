@@ -46,6 +46,16 @@ A future run request references **one immutable experiment/pack digest** and two
 
 ## Assertion result semantics
 
+**SC-07 implementation note:** `slipcage_engine.results` now provides typed
+`Observation`, `AssertionResult` and `result_for_observation` primitives.
+They revalidate the source definition, enforce declared assertion IDs, and
+map normalized observation status to outcome without conflating infrastructure
+errors with security-boundary failures. The `verified` status remains a
+**trusted-adapter claim only**; no Kubernetes request, evidence verification,
+result replay, differential comparison or runnable CLI is implemented yet.
+The JSON serialization explicitly says `evidence_status: not_collected`.
+
+
 | Outcome | Meaning | Example |
 | --- | --- | --- |
 | `PASS` | Observed behavior matches the security expectation | Restricted subject receives a verified authorization denial |
