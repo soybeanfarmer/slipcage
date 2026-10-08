@@ -303,6 +303,14 @@
         enabled: true
         state: started
 
+    - name: Install non-destructive restore drill tool
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-restore-check.py"
+        dest: /usr/local/sbin/slipcage-restore-check
+        owner: root
+        group: root
+        mode: '0755'
+
     - name: Deploy guarded review recovery unit
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../systemd/slipcage-recover.service"
