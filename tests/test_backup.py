@@ -75,8 +75,8 @@ class BackupTests(unittest.TestCase):
             self.create(now=NOW + timedelta(seconds=i), keep=2)
         completed = sorted(p.name for p in self.dest.glob("backup-*"))
         self.assertEqual(len(completed), 2)
-        self.assertTrue(completed[0].endswith("000002000000Z"))
-        self.assertTrue(completed[1].endswith("000003000000Z"))
+        self.assertTrue(completed[0].endswith("200002000000Z"))
+        self.assertTrue(completed[1].endswith("200003000000Z"))
         for path in self.dest.glob("backup-*"):
             self.assertTrue(backup.verify_backup(path)["verified"])
 
