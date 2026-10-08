@@ -10,7 +10,6 @@ import argparse
 import json
 import os
 from pathlib import Path
-import shutil
 import stat
 import subprocess
 import sys
@@ -21,6 +20,8 @@ QMP_INPUT = (
     '{"execute":"query-kvm","id":"inspect-kvm"}\n'
     '{"execute":"quit","id":"exit"}\n'
 )
+GUEST_INITRD = Path("/usr/local/lib/slipcage/microguest.cpio.gz")
+BOOT_MARKER = "SLIPCAGE_MICROGUEST_OK"
 QEMU_ARGS = (
     QEMU, "-no-user-config", "-nodefaults", "-machine", "q35,accel=kvm",
     "-m", "256", "-smp", "1", "-display", "none", "-monitor", "none",
@@ -96,14 +97,52 @@ def smoke(*, runner=subprocess.run) -> dict:
     }
 
 
+def boot_guest(*, runner=subprocess.run) -> dict:
+    """Start a tiny Linux guest without network, drives, or persistent changes."""
+    preflight = inspect()
+    kernel = Path("/boot") / f"vmlinuz-{os.uname().release}"
+    if not (preflight["process_can_open_kvm"] and preflight["qemu_binary_available"]
+            and kernel.is_file() and GUEST_INITRD.is_file()):
+        return {"guest_booted": False, "reason": "KVM, QEMU, kernel or initramfs unavailable",
+                "inspection": preflight}
+    args = [
+        QEMU, "-no-user-config", "-nodefaults", "-machine", "q35,accel=kvm",
+        "-cpu", "host", "-m", "384", "-smp", "1",
+        "-display", "none", "-monitor", "none", "-serial", "stdio",
+        "-nic", "none", "-no-reboot", "-kernel", str(kernel),
+        "-initrd", str(GUEST_INITRD),
+        "-append", "console=ttyS0 rdinit=/init panic=1 quiet",
+    ]
+    try:
+        process = runner(args, text=True, capture_output=True, timeout=75, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"guest_booted": False, "reason": type(exc).__name__,
+                "inspection": preflight}
+    passed = process.returncode == 0 and BOOT_MARKER in process.stdout
+    return {
+        "guest_booted": passed, "exit_code": process.returncode,
+        "inspection": preflight,
+        "network": "disabled", "persistent_guest_disk": False,
+        "meaning": "A disposable nested guest booted and powered off; no security boundary was tested."
+                   if passed else "The disposable guest did not pass the boot test.",
+        "console_tail": process.stdout[-1200:] if not passed else "",
+        "stderr_tail": process.stderr[-1000:] if not passed else "",
+    }
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--smoke", action="store_true",
-                        help="Initialize QEMU with KVM; must be manually approved and run.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--smoke", action="store_true",
+                      help="Initialize paused, diskless QEMU with KVM (manual).")
+    mode.add_argument("--boot", action="store_true",
+                      help="Boot and shut down a locally built, diskless Linux guest (manual).")
     args = parser.parse_args(argv)
-    result = smoke() if args.smoke else inspect()
+    result = boot_guest() if args.boot else smoke() if args.smoke else inspect()
     print(json.dumps(result, sort_keys=True))
-    return 0 if not args.smoke or result["kvm_initialized"] else 2
+    return 0 if (not args.smoke and not args.boot) or (
+        result.get("guest_booted") is True or result.get("kvm_initialized") is True
+    ) else 2
 
 
 if __name__ == "__main__":
