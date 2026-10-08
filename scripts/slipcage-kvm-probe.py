@@ -131,8 +131,10 @@ def boot_guest(*, runner=subprocess.run,
         "network": "disabled", "persistent_guest_disk": False,
         "meaning": "A disposable nested guest booted and powered off; no security boundary was tested."
                    if passed else "The disposable guest did not pass the boot test.",
-        "console_tail": process.stdout[-1200:] if not passed else "",
-        "stderr_tail": process.stderr[-1000:] if not passed else "",
+        # Capture a small, bounded console excerpt even on success so that
+        # the lifecycle supervisor can preserve evidence of actual boot.
+        "console_tail": process.stdout[-1200:],
+        "stderr_tail": process.stderr[-1000:],
     }
 
 
