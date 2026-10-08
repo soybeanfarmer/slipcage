@@ -1,0 +1,38 @@
+[Unit]
+Description=Manual Slipcage fixed arithmetic/SHA-256 microguest experiment (%i cycles)
+After=local-fs.target
+ConditionPathExists=/dev/kvm
+ConditionPathExists=/usr/local/lib/slipcage/experiment-v1.cpio.gz
+
+[Service]
+Type=oneshot
+User=slipcage-vmprobe
+Group=slipcage-vmprobe
+SupplementaryGroups=kvm
+ExecStart=/usr/bin/python3 /usr/local/lib/slipcage/guest-lifecycle.py --profile experiment --cycles %i
+TimeoutStartSec=5min
+UMask=0077
+StateDirectory=slipcage-guest
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+DevicePolicy=closed
+DeviceAllow=/dev/kvm rw
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryAccounting=yes
+MemoryMax=1280M
+CPUAccounting=yes
+CPUQuota=100%
+TasksMax=64
+LimitNOFILE=1024
+LimitFSIZE=1M
+KillMode=control-group
