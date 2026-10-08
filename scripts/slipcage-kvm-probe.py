@@ -97,12 +97,14 @@ def smoke(*, runner=subprocess.run) -> dict:
     }
 
 
-def boot_guest(*, runner=subprocess.run) -> dict:
+def boot_guest(*, runner=subprocess.run,
+               kernel_path: Path | None = None, initrd_path: Path | None = None) -> dict:
     """Start a tiny Linux guest without network, drives, or persistent changes."""
     preflight = inspect()
-    kernel = Path("/boot") / f"vmlinuz-{os.uname().release}"
+    kernel = kernel_path if kernel_path is not None else Path("/boot") / f"vmlinuz-{os.uname().release}"
+    initrd = initrd_path if initrd_path is not None else GUEST_INITRD
     if not (preflight["process_can_open_kvm"] and preflight["qemu_binary_available"]
-            and kernel.is_file() and GUEST_INITRD.is_file()):
+            and kernel.is_file() and initrd.is_file()):
         return {"guest_booted": False, "reason": "KVM, QEMU, kernel or initramfs unavailable",
                 "inspection": preflight}
     args = [
@@ -110,7 +112,7 @@ def boot_guest(*, runner=subprocess.run) -> dict:
         "-cpu", "host", "-m", "384", "-smp", "1",
         "-display", "none", "-monitor", "none", "-serial", "stdio",
         "-nic", "none", "-no-reboot", "-kernel", str(kernel),
-        "-initrd", str(GUEST_INITRD),
+        "-initrd", str(initrd),
         "-append", "console=ttyS0 rdinit=/init panic=1 quiet",
     ]
     try:
