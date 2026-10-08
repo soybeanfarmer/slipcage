@@ -256,6 +256,45 @@
       changed_when: false
       register: dagu_version_result
 
+    - name: Create private on-server backup directory
+      ansible.builtin.file:
+        path: /var/backups/slipcage
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Install validated backup helper
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-backup.py"
+        dest: /usr/local/sbin/slipcage-backup
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install hardened backup systemd service
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-backup.service"
+        dest: /etc/systemd/system/slipcage-backup.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install daily backup timer
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-backup.timer"
+        dest: /etc/systemd/system/slipcage-backup.timer
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Enable scheduled Slipcage backups
+      ansible.builtin.systemd_service:
+        name: slipcage-backup.timer
+        daemon_reload: true
+        enabled: true
+        state: started
+
     - name: Release deployment maintenance after health checks
       ansible.builtin.command: /usr/local/bin/slipcage-guard end
       when: existing_guard.stat.exists

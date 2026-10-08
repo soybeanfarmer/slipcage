@@ -1,0 +1,26 @@
+[Unit]
+Description=Create and verify a private Slipcage research backup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/python3 /usr/local/sbin/slipcage-backup create --db /srv/isolab/research.sqlite3 --reports /srv/isolab/reports --destination /var/backups/slipcage --keep 14
+TimeoutStartSec=20min
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/srv/isolab
+ReadWritePaths=/var/backups/slipcage
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any

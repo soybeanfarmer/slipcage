@@ -55,6 +55,16 @@ sudo cat /srv/isolab/reports/smoke-ok.json
 
 For immediate advisory discovery, run the `discover` DAG manually in Dagu's web UI. It is also scheduled every six hours. A successful run creates `research.sqlite3`, enqueues up to three advisory-review jobs, and generates Markdown reports under `/srv/isolab/reports/`. The `review-candidate` workflow is metadata-only; it is not a vulnerability validation workflow.
 
+## Automated local backups (v0.2.1 proposal)
+
+A new root-only systemd timer creates daily SQLite online snapshots and a
+bounded report archive. It verifies both, preserves 14 successful backup sets,
+and does not remove previous sets when a run fails. The service is deployed
+only through a separately approved GitHub release; there is no automatic
+destructive restore. See [Backup operations and limitations](docs/BACKUPS.md).
+**Same-VPS copies are not off-server disaster recovery** and omit Dagu history
+and future fuzzing corpora.
+
 ## Useful commands
 
 ```bash
