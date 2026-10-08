@@ -51,6 +51,7 @@
           - python3
           - python3-venv
           - python3-pip
+          - restic
           - sqlite3
           - jq
           - unzip
@@ -114,6 +115,28 @@
         group: "{{ research_group }}"
         shell: /usr/sbin/nologin
         home: /var/lib/isolab
+        create_home: false
+        system: true
+        password_lock: true
+
+    - name: Ensure KVM device-access group exists
+      ansible.builtin.group:
+        name: kvm
+        system: true
+
+    - name: Create dedicated VM probe group
+      ansible.builtin.group:
+        name: slipcage-vmprobe
+        system: true
+
+    - name: Create isolated, unprivileged VM probe account
+      ansible.builtin.user:
+        name: slipcage-vmprobe
+        group: slipcage-vmprobe
+        groups: kvm
+        append: true
+        shell: /usr/sbin/nologin
+        home: /nonexistent
         create_home: false
         system: true
         password_lock: true
@@ -333,6 +356,58 @@
         daemon_reload: true
         enabled: true
         state: started
+
+    - name: Create root-owned readiness script directory
+      ansible.builtin.file:
+        path: /usr/local/lib/slipcage
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install KVM readiness probe (manual only)
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-kvm-probe.py"
+        dest: /usr/local/lib/slipcage/kvm-probe.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install sandboxed manual KVM probe unit
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-kvm-probe.service"
+        dest: /etc/systemd/system/slipcage-kvm-probe.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install opt-in encrypted offsite backup runner
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-offsite-backup.sh"
+        dest: /usr/local/sbin/slipcage-offsite-backup
+        owner: root
+        group: root
+        mode: '0750'
+
+    - name: Install disabled-by-default encrypted backup service
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-offsite-backup.service"
+        dest: /etc/systemd/system/slipcage-offsite-backup.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install disabled-by-default encrypted backup timer
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-offsite-backup.timer"
+        dest: /etc/systemd/system/slipcage-offsite-backup.timer
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd for opt-in units without enabling them
+      ansible.builtin.systemd_service:
+        daemon_reload: true
 
     - name: Release deployment maintenance after health checks
       ansible.builtin.command: /usr/local/bin/slipcage-guard end
