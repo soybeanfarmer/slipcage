@@ -13,6 +13,8 @@ from .fixture_executor import (
 from .results import AssertionOutcome
 from .evidence import BundleError, write_fixture_bundle, verify_bundle
 from .comparison import ChangeKind, compare_fixture_bundles
+from .reports import ReportError, render_fixture_report
+from .workflow import DemoError, create_fixture_demo, verify_fixture_demo
 from .specification import SpecValidationError, load_spec
 
 EXIT_ASSERTION_NOT_PASS = 1
@@ -53,6 +55,22 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("candidate", help="Private candidate bundle directory")
     compare.add_argument("--json", action="store_true", help="Machine-readable synthetic comparison")
 
+    report = commands.add_parser("report-fixtures", help="Render synthetic JSON or Markdown from two verified bundles")
+    report.add_argument("baseline", help="Private baseline bundle directory")
+    report.add_argument("candidate", help="Private candidate bundle directory")
+    report.add_argument("--format", choices=("json", "markdown"), default="markdown")
+
+    demo = commands.add_parser("demo-fixtures", help="Generate a complete private OFFLINE synthetic baseline/candidate demo")
+    demo.add_argument("file", help="Local validated experiment definition")
+    demo.add_argument("--baseline-scenario", required=True, choices=[s.value for s in FixtureScenario])
+    demo.add_argument("--candidate-scenario", required=True, choices=[s.value for s in FixtureScenario])
+    demo.add_argument("--output", required=True, help="New directory under an existing PRIVATE local parent")
+    demo.add_argument("--json", action="store_true", help="Machine-readable verification summary")
+
+    verify_demo = commands.add_parser("verify-demo", help="Read-only verification of an existing synthetic demo")
+    verify_demo.add_argument("directory", help="Private synthetic demo root")
+    verify_demo.add_argument("--json", action="store_true", help="Machine-readable verification summary")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -68,8 +86,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "compare-fixtures":
+        if args.command in ("compare-fixtures", "report-fixtures"):
             comparison = compare_fixture_bundles(args.baseline, args.candidate)
+            if args.command == "report-fixtures":
+                fixture_report = render_fixture_report(comparison)
+        elif args.command == "verify-demo":
+            demo_verification = verify_fixture_demo(args.directory)
         elif args.command == "verify-bundle":
             verified = verify_bundle(args.directory)
         else:
@@ -78,9 +100,36 @@ def main(argv: Sequence[str] | None = None) -> int:
                 run = run_fixture(definition, FixtureScenario(args.scenario))
             elif args.command == "bundle-fixture":
                 verified = write_fixture_bundle(definition, FixtureScenario(args.scenario), args.output)
-    except (SpecValidationError, FixtureExecutionError, BundleError) as exc:
+            elif args.command == "demo-fixtures":
+                demo_verification = create_fixture_demo(
+                    definition, FixtureScenario(args.baseline_scenario),
+                    FixtureScenario(args.candidate_scenario), args.output,
+                )
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command in ("demo-fixtures", "verify-demo"):
+        if args.json:
+            print(json.dumps(demo_verification.to_dict(), sort_keys=True, separators=(",", ":")))
+        else:
+            print("SYNTHETIC OFFLINE DEMO ONLY; "
+                  f"classification={demo_verification.comparison.classification.value}; "
+                  "no real security evidence")
+        if demo_verification.comparison.classification in (ChangeKind.REGRESSION, ChangeKind.MIXED_CHANGE):
+            return EXIT_ASSERTION_NOT_PASS
+        return 0
+
+    if args.command == "report-fixtures":
+        if args.format == "json":
+            print(fixture_report.json_bytes.decode("ascii"))
+        else:
+            print(fixture_report.markdown_bytes.decode("utf-8"), end="")
+        if not comparison.comparable:
+            return EXIT_INTERRUPTED
+        if comparison.classification in (ChangeKind.REGRESSION, ChangeKind.MIXED_CHANGE):
+            return EXIT_ASSERTION_NOT_PASS
+        return 0
 
     if args.command == "compare-fixtures":
         if args.json:

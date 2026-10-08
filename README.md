@@ -139,6 +139,24 @@ A synthetic baseline PASS and candidate FAIL is labeled `regression`;
 missing, damaged or incompatible bundles are `incomparable` instead.
 The generic real-environment `compare` command remains unavailable.
 
+SC-11 now offers read-only JSON/Markdown reports and a one-command, completely
+synthetic offline proof:
+
+~~~bash
+scratch="$(mktemp -d)"
+slipcage demo-fixtures examples/experiments/rbac-pod-create-denied.yaml \
+  --baseline-scenario denied --candidate-scenario allowed \
+  --output "$scratch/proof" --json
+slipcage verify-demo "$scratch/proof" --json
+~~~
+
+Both commands intentionally exit 1 when they detect the seeded synthetic
+regression. The private proof includes two independently checked bundles,
+`report.json`, `report.md`, and a final completion manifest. This is
+**not** a live security finding or a Kubernetes test. For read-only output from
+existing bundles, use `slipcage report-fixtures BASELINE CANDIDATE --format markdown`.
+See [offline proof and reports](docs/ENGINE_CLI.md).
+
 Verification confirms local integrity and replay against the packaged fixture,
 **not** genuine security behavior, secure authorship, or a real Kubernetes
 observation. Existing output directories are never overwritten. See
