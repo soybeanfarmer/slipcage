@@ -49,3 +49,13 @@ Starter implements `pending -> queued -> reviewed` only. It does not classify a 
 - https://www.qemu.org/docs/master/devel/testing/fuzzing.html
 - https://docs.github.com/en/rest/security-advisories/global-advisories
 - https://nvd.nist.gov/developers/vulnerabilities
+
+## Deployment barrier
+
+Each reviewed DAG calls a shared-lock wrapper for the entire experiment.
+Ansible creates a maintenance marker, prevents new experiments, waits for
+all existing experiments to drain under an exclusive lock, applies updates,
+flushes service restarts, checks service health, and resumes. A timeout
+aborts the update; a later failure leaves maintenance enabled. Some queued
+or scheduled jobs may need reconciliation; this is a requirement before
+automating long-lived research experiments.
