@@ -133,7 +133,9 @@ def rollback_delivery(conn, candidate_id: str, token: str) -> None:
 
 
 def enqueue(conn: sqlite3.Connection, workflow: str, limit: int,
-            *, runner=subprocess.run, now: datetime | None = None) -> dict:
+            *, runner=None, now: datetime | None = None) -> dict:
+    if runner is None:
+        runner = subprocess.run
     submitted = 0
     failed = 0
     while True:
