@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 BACKUP_ROOT = Path("/var/backups/slipcage")
 DEPLOY_SHA = Path("/var/lib/slipcage/deployed-sha")
@@ -193,16 +194,18 @@ def write_status(result: dict, destination: Path = STATUS) -> bool:
         except (OSError, ValueError):
             pass
     changed = (previous is None or previous.get("issues") != result["issues"])
-    temporary = destination.with_name(destination.name + ".tmp")
-    if temporary.is_symlink():
-        raise ValueError("Health temporary file must not be a symlink")
-    with temporary.open("x", encoding="utf-8") as stream:
-        json.dump(result, stream, sort_keys=True, indent=2)
-        stream.write("\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.chmod(temporary, 0o600)
-    os.replace(temporary, destination)
+    fd, name = tempfile.mkstemp(prefix=".health-status-", dir=destination.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(result, stream, sort_keys=True, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
     return changed
 
 
