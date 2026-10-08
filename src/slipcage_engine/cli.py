@@ -26,6 +26,7 @@ from .vm_reservation import (
     ReservationError, QuarantineReason, stage_local_reservation,
     inspect_local_reservation, quarantine_local_reservation,
 )
+from .vm_overlay_preflight import OverlayPreflightError, inspect_overlay_intent
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -194,6 +195,15 @@ def build_parser() -> argparse.ArgumentParser:
     quarantine_stage.add_argument("--reason", required=True, choices=[v.value for v in QuarantineReason])
     quarantine_stage.add_argument("--json", action="store_true")
 
+    overlay = commands.add_parser(
+        "inspect-vm-backing",
+        help="Read-only conservative QCOW2 base header/hash + overlay reservation binding; NO overlay",
+    )
+    overlay.add_argument("file", help="Non-synthetic pinned SC-12 VM plan")
+    overlay.add_argument("--assets-dir", required=True, help="Existing private local asset directory")
+    overlay.add_argument("--reservation-root", required=True, help="Existing completed SC-13b6 private reservation")
+    overlay.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -209,7 +219,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "stage-vm-reservation":
+        if args.command == "inspect-vm-backing":
+            vm_definition = load_vm_plan(args.file)
+            asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
+            vm_reservation = inspect_local_reservation(args.reservation_root)
+            backing_report = inspect_overlay_intent(
+                vm_definition, asset_preflight, vm_reservation, args.assets_dir,
+            )
+        elif args.command == "stage-vm-reservation":
             vm_definition = load_vm_plan(args.file)
             asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
             vm_record = stage_local_reservation(
@@ -289,9 +306,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "inspect-vm-backing":
+        if args.json:
+            print(backing_report.canonical_json().decode("ascii"))
+        else:
+            print("QCOW2 HEADER-SHAPE AND BASE DIGEST ONLY; "
+                  "overlay_created=false; backing_chain_created=false; "
+                  "execution_authorized=false")
+        return 0  # Conservative offline preflight, NOT full image integrity.
 
     if args.command in ("stage-vm-reservation", "inspect-vm-reservation", "quarantine-vm-reservation"):
         if args.json:

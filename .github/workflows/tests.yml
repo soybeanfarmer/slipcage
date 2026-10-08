@@ -193,6 +193,8 @@ jobs:
           # SC-13b6 file-backed reservation tests write only to isolated ephemeral temp roots.
           # No VM launch, disk overlay, VPS access or production file changes.
           python -m unittest discover -s tests -p 'test_vm_reservation.py' -q
+          # SC-13b7 tiny hand-built QCOW2 header shapes in runner scratch, NEVER qemu-img/QEMU.
+          python -m unittest discover -s tests -p 'test_vm_overlay_preflight.py' -q
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

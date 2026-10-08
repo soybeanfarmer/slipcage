@@ -316,6 +316,25 @@ Do not use existing production data paths or run it on the VPS without
 separate explicit approval. See
 [SC-13b6 local reservation safety contract](docs/VM_PRIVATE_RESERVATION.md).
 
+## SC-13b7 — Read-only QCOW2 base and overlay-intent preflight
+
+The new `slipcage inspect-vm-backing` command checks a narrow **QCOW2 v3
+header shape** and entire local base-image SHA-256 against nonsynthetic SC-12
+operator-supplied pins. It also binds the check to a valid **non-quarantined**
+SC-13b6 private staging reservation:
+
+~~~bash
+slipcage inspect-vm-backing /private/operator-plan.json \
+  --assets-dir /private/operator-assets \
+  --reservation-root /private/existing-staged-root --json
+~~~
+
+The base header must have **no embedded backing-file path, snapshots,
+encryption or unsupported feature flags**. This does **not** inspect the full
+QCOW2 allocation/refcount graph, authenticate upstream publishers, create an
+overlay, traverse a backing chain or prove image immutability. No QEMU or
+qemu-img commands run. See [SC-13b7 conservative base preflight](docs/VM_QCOW2_BASE_PREFLIGHT.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:
