@@ -381,6 +381,7 @@
           - /usr/local/lib/slipcage/build-microguest
         creates: /usr/local/lib/slipcage/microguest.cpio.gz
 
+    - name: Install KVM readiness probe (manual only)
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../scripts/slipcage-kvm-probe.py"
         dest: /usr/local/lib/slipcage/kvm-probe.py
@@ -412,6 +413,7 @@
         group: root
         mode: '0700'
 
+    - name: Install opt-in encrypted offsite backup runner
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../scripts/slipcage-offsite-backup.sh"
         dest: /usr/local/sbin/slipcage-offsite-backup
