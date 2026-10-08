@@ -96,6 +96,20 @@ See [Research Environment Readiness](docs/ENVIRONMENT_READINESS.md) for
 safety boundaries, manual checks and offsite setup. Production stays on
 v0.3.0 until a reviewed and explicitly approved release.
 
+## v0.5 Safe Experiment Infrastructure (proposed)
+
+Adds a **manual-only** guest lifecycle service for one to five sequential
+runs of Slipcage's existing benign, diskless, networkless KVM Linux
+microguest. The service is unprivileged and systemd-sandboxed, with
+process-group cleanup on timeouts, private per-cycle logs and JSON
+summaries, and bounded 20-run retention. No fuzzing, scanning, host escape
+workflows, or unattended guest schedules are activated.
+
+See [Guest lifecycle operations and safety boundaries](docs/GUEST_LIFECYCLE.md).
+**Encrypted off-server backup setup is intentionally deferred**; the
+existing daily local SQLite/report backups remain enabled, but do not
+include disposable guest-cycle logs.
+
 ## Useful commands
 
 ```bash

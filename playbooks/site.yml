@@ -414,6 +414,22 @@
         group: root
         mode: '0644'
 
+    - name: Install fixed-command disposable guest lifecycle supervisor
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-guest-lifecycle.py"
+        dest: /usr/local/lib/slipcage/guest-lifecycle.py
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install manual only nested guest cycle template
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-guest-cycles@.service"
+        dest: /etc/systemd/system/slipcage-guest-cycles@.service
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Restrict offsite-credential directory
       ansible.builtin.file:
         path: /etc/slipcage
