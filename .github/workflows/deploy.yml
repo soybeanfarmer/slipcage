@@ -1,0 +1,72 @@
+name: Deploy Slipcage
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: slipcage-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate release
+        run: |
+          python -m pip install 'PyYAML==6.0.2' 'ansible-core==2.17.14'
+          python -m unittest discover -s tests -v
+          python -m compileall -q app scripts tests
+          ansible-playbook -i inventory/hosts.ini.example playbooks/site.yml --syntax-check
+
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ansible
+        run: python -m pip install 'ansible-core==2.17.14'
+      - name: Connect ephemeral runner to tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:slipcage-ci
+      - name: Configure pinned SSH host identity
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST_KEYS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.SLIPCAGE_TAILSCALE_HOST }}
+          DEPLOY_USER: ${{ vars.SLIPCAGE_DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.:-]+$ ]] || exit 1
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || exit 1
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_HOST_KEYS" > ~/.ssh/known_hosts
+          chmod 0600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          printf '[research]\nlab ansible_host=%s ansible_user=%s\n[research:vars]\nansible_python_interpreter=/usr/bin/python3\n' \
+            "$DEPLOY_HOST" "$DEPLOY_USER" > inventory/hosts.ini
+      - name: Verify SSH access and host identity
+        run: |
+          ansible research -i inventory/hosts.ini --private-key ~/.ssh/id_ed25519 -m ansible.builtin.ping
+      - name: Drain and deploy guarded research workflows
+        run: |
+          ansible-playbook -i inventory/hosts.ini --private-key ~/.ssh/id_ed25519 playbooks/site.yml
+      - name: Check Dagu service
+        run: |
+          ansible research -i inventory/hosts.ini --private-key ~/.ssh/id_ed25519 -m ansible.builtin.command -a 'systemctl is-active isolab-dagu.service'
