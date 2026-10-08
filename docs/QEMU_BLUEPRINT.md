@@ -47,3 +47,7 @@ The `launch_qemu(...)` library entrypoint deliberately raises `QemuLaunchDisable
 5. **Manual one-guest validation:** owner separately approves any live VM launch, merges the reviewed PR, approves appropriate release promotion, manually runs approved VPS commands, and supplies deployed SHA and logs for verification. Green CI cannot stand in for any live host result.
 
 **No release, VPS SSH command, systemd action or QEMU process is performed by this PR.** See [SC-13 lifecycle design](VM_LIFECYCLE_DESIGN.md), [asset preflight](VM_ASSET_PREFLIGHT.md), [host observation](VM_HOST_OBSERVATION.md), [security policy](../SECURITY.md) and [roadmap](V1_ROADMAP.md).
+
+## SC-13b5 — Offline resource-supervisor control contract
+
+The next slice adds [single-owner simulated fencing and resource budgets](VM_SUPERVISION_CONTRACT.md). It derives bounds from this **incomplete** QEMU prefix but still never creates overlays, launches QEMU, applies cgroups or executes watchdogs. SC-13 real-VM approval remains outstanding under Issues #23 and #25.

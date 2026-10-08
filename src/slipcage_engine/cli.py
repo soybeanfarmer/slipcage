@@ -22,6 +22,10 @@ from .vm_provenance import VMProvenanceError, verify_provenance
 from .vm_host_readiness import VMHostReadinessError, load_host_snapshot, assess_host_snapshot
 from .vm_host_observe import HostObservationError, inspect_local_host
 from .vm_qemu_blueprint import QemuBlueprintError, build_qemu_blueprint
+from .vm_supervision import (
+    SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
+    simulate_supervision, simulate_supervision_pair,
+)
 from .vm_lifecycle import (
     VMLifecycleError, VMSimulationScenario, VMFinalState, VMFailureReason,
     simulate_vm_lifecycle, simulate_sequential_pair,
@@ -140,6 +144,25 @@ def build_parser() -> argparse.ArgumentParser:
     qemu.add_argument("--assets-dir", required=True, help="Private SC-13b1 local asset directory")
     qemu.add_argument("--json", action="store_true")
 
+    supervisor = commands.add_parser(
+        "simulate-vm-supervision",
+        help="IN-MEMORY single-lease, cgroup-budget, deadline and cleanup fault model; no QEMU",
+    )
+    supervisor.add_argument("file", help="Validated nonsynthetic SC-12 VM plan")
+    supervisor.add_argument("--assets-dir", required=True, help="Private SC-13b1 asset directory")
+    supervisor.add_argument("--scenario", required=True, choices=[s.value for s in SupervisionScenario])
+    supervisor.add_argument("--json", action="store_true")
+
+    supervisor_pair = commands.add_parser(
+        "simulate-vm-supervision-pair",
+        help="IN-MEMORY sequential baseline/candidate fencing; no host changes",
+    )
+    supervisor_pair.add_argument("file", help="Validated nonsynthetic SC-12 VM plan")
+    supervisor_pair.add_argument("--assets-dir", required=True, help="Private SC-13b1 asset directory")
+    supervisor_pair.add_argument("--baseline-scenario", required=True, choices=[s.value for s in SupervisionScenario])
+    supervisor_pair.add_argument("--candidate-scenario", required=True, choices=[s.value for s in SupervisionScenario])
+    supervisor_pair.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -155,7 +178,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "plan-qemu":
+        if args.command in ("simulate-vm-supervision", "simulate-vm-supervision-pair"):
+            vm_definition = load_vm_plan(args.file)
+            asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
+            if args.command == "simulate-vm-supervision":
+                supervision = simulate_supervision(
+                    vm_definition, asset_preflight, SupervisionScenario(args.scenario),
+                )
+            else:
+                supervision_pair = simulate_supervision_pair(
+                    vm_definition, asset_preflight,
+                    SupervisionScenario(args.baseline_scenario),
+                    SupervisionScenario(args.candidate_scenario),
+                )
+        elif args.command == "plan-qemu":
             vm_definition = load_vm_plan(args.file)
             asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
             blueprint = build_qemu_blueprint(vm_definition, asset_preflight)
@@ -208,9 +244,36 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "simulate-vm-supervision":
+        if args.json:
+            print(supervision.canonical_json().decode("ascii"))
+        else:
+            print("IN-MEMORY VM SUPERVISION MODEL ONLY; "
+                  f"phase={supervision.phase.value}; outcome={supervision.outcome.value}; "
+                  "real_guest_started=false; execution_authorized=false")
+        if supervision.phase is SupervisionPhase.QUARANTINED:
+            return 5
+        return (0 if supervision.outcome is SupervisionOutcome.COMPLETED
+                else EXIT_INTERRUPTED)
+
+    if args.command == "simulate-vm-supervision-pair":
+        if args.json:
+            print(json.dumps(supervision_pair, sort_keys=True, separators=(",", ":")))
+        else:
+            print("IN-MEMORY SEQUENTIAL SUPERVISION MODEL ONLY; "
+                  f"candidate_attempted={str(supervision_pair['candidate_attempted']).lower()}; "
+                  "real_guest_started=false")
+        last = supervision_pair["candidate"] or supervision_pair["baseline"]
+        if last["phase"] == SupervisionPhase.QUARANTINED.value:
+            return 5
+        if (supervision_pair["candidate"] is None
+                or last["outcome"] != SupervisionOutcome.COMPLETED.value):
+            return EXIT_INTERRUPTED
+        return 0
 
     if args.command == "plan-qemu":
         if args.json:

@@ -55,6 +55,13 @@ from .vm_qemu_blueprint import (
     build_qemu_blueprint, launch_qemu,
 )
 
+from .vm_supervision import (
+    SupervisionError, SupervisionPhase, SupervisionEvent, SupervisionOutcome,
+    SupervisionScenario, SupervisorDesign, SupervisorAuditEvent,
+    SupervisionJournal, design_supervision, new_journal, transition,
+    simulate_supervision, simulate_supervision_pair,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -79,4 +86,8 @@ __all__ = [
     "HostObservationError", "LocalHostObservation", "inspect_local_host",
     "QemuBlueprintError", "QemuLaunchDisabled", "QemuLaunchBlueprint",
     "build_qemu_blueprint", "launch_qemu",
+    "SupervisionError", "SupervisionPhase", "SupervisionEvent",
+    "SupervisionOutcome", "SupervisionScenario", "SupervisorDesign",
+    "SupervisorAuditEvent", "SupervisionJournal", "design_supervision",
+    "new_journal", "transition", "simulate_supervision", "simulate_supervision_pair",
 ]

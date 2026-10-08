@@ -65,3 +65,7 @@ guest execution and cleanup gates remain unresolved in Issue #25.
 ## SC-13b4 — Static QEMU adapter blueprint (nonexecuting)
 
 A reviewed fixed-argv *prefix* can now be built from a strict nonsynthetic SC-12 plan plus SC-13b1 local asset integrity checks. It is deliberately paused, diskless, kernel-less and networkless, cannot boot a guest, and has no real launcher or resource supervisor. See [SC-13b4 blueprint and missing runtime safety gates](QEMU_BLUEPRINT.md). Issues #23 and #25 remain required before authorizing a bounded live VM test.
+
+## SC-13b5 — Non-executing supervisor fault model
+
+A new [bounded in-memory supervision contract](VM_SUPERVISION_CONTRACT.md) now models single-owner attempt revisions, admission, deadline/resource monitoring, simulated cleanup and non-clearable crash quarantine. It has no durable lease, OS cgroup supervisor, real VM, private overlay or host cleanup. Full SC-13 live execution remains a separate review/authorization gate.
