@@ -17,6 +17,7 @@ from .reports import ReportError, render_fixture_report
 from .workflow import DemoError, create_fixture_demo, verify_fixture_demo
 from .specification import SpecValidationError, load_spec
 from .vm_plan import VMPlanError, assess_vm_plan, load_vm_plan, load_host_inventory
+from .vm_assets import VMAssetError, verify_local_vm_assets
 from .vm_lifecycle import (
     VMLifecycleError, VMSimulationScenario, VMFinalState, VMFailureReason,
     simulate_vm_lifecycle, simulate_sequential_pair,
@@ -97,6 +98,14 @@ def build_parser() -> argparse.ArgumentParser:
     pair.add_argument("--candidate-scenario", required=True, choices=[s.value for s in VMSimulationScenario])
     pair.add_argument("--json", action="store_true", help="Machine-readable synthetic pair state")
 
+    asset_check = commands.add_parser(
+        "verify-vm-artifacts",
+        help="Read-only local SHA-256 checks; NEVER authorizes or boots a VM",
+    )
+    asset_check.add_argument("file", help="Local operator-supplied SC-12 VM plan, not a synthetic sample")
+    asset_check.add_argument("--directory", required=True, help="Trusted private directory with five fixed files")
+    asset_check.add_argument("--json", action="store_true", help="Machine-readable local byte-integrity result")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -112,9 +121,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command in ("simulate-vm-lifecycle", "simulate-vm-pair"):
+        if args.command == "verify-vm-artifacts":
             vm_definition = load_vm_plan(args.file)
-            if args.command == "simulate-vm-lifecycle":
+            asset_report = verify_local_vm_assets(vm_definition, args.directory)
+        elif args.command in ("simulate-vm-lifecycle", "simulate-vm-pair"):
+            vm_definition = load_vm_plan(args.file)
+            if args.command == "verify-vm-artifacts":
+        if args.json:
+            print(asset_report.canonical_json().decode("ascii"))
+        else:
+            print("LOCAL SHA-256 BYTES MATCH UNTRUSTED VM PINS ONLY; "
+                  f"plan={asset_report.plan_id}; "
+                  "software_origin_authenticated=false; "
+                  "execution_authorized=false; vm_launched=false")
+        return 0  # Local byte equality ONLY, not a trusted/bootable environment.
+
+    if args.command == "simulate-vm-lifecycle":
                 vm_simulation = simulate_vm_lifecycle(
                     vm_definition, VMSimulationScenario(args.scenario)
                 )
@@ -147,7 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
 

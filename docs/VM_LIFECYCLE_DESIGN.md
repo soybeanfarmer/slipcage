@@ -52,3 +52,12 @@ The offline control model **does not satisfy** the original SC-13 acceptance gat
 No live QEMU backend, generic VM run command, new host networking or systemd unit is introduced here. The simulated success case is neither guest readiness nor a security assertion.
 
 See [SC-12 feasibility](K3S_VM_FEASIBILITY.md), [roadmap](V1_ROADMAP.md), [human-controlled workflow](DEVELOPMENT_WORKFLOW.md) and [security policy](../SECURITY.md).
+
+## SC-13b1 — Byte-level preflight added, live lifecycle still absent
+
+A separate development-only, read-only `verify-vm-artifacts` checker now
+enforces local SHA-256 equality for five operator-supplied private asset
+files. It neither authenticates the upstream source of the bytes nor changes
+this state machine into a runnable backend. See
+[SC-13b1 asset preflight](VM_ASSET_PREFLIGHT.md). All real disk, QEMU, network,
+guest execution and cleanup gates remain unresolved in Issue #25.
