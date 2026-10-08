@@ -1,6 +1,6 @@
 # Slipcage offline experiment contract engine — v0.12 first implementation
 
-This is the **first coded product-facing milestone** (SC-05/SC-06 foundation). It is intentionally a small, local, non-executing Python package. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
+This contains the **first product-facing contract work** (SC-05/SC-06) and the **SC-07 typed assertion-result model**. It remains a local, non-executing Python package. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
 
 ## Install and run locally
 
@@ -44,6 +44,47 @@ The bundled JSON Schema is the only supported `slipcage.dev/v1alpha1` contract f
 
 JSON and YAML versions of the same logical data produce the same fingerprint. No arbitrary dynamic code, shell expression, network target or execution adapter is exposed by this package. No cloud credentials or VPS addresses are needed.
 
+## Typed assertion outcomes (SC-07, offline library only)
+
+The `slipcage_engine.results` module defines immutable, typed outcomes tied to
+a revalidated experiment specification and an explicitly declared assertion ID:
+
+- `PASS`: a **claimed verified** observation matches the security expectation.
+- `FAIL`: a **claimed verified** observation contradicts the expectation.
+- `ERROR`: an execution or infrastructure failure prevented evaluation.
+- `SKIP`: a required capability is explicitly unsupported.
+- `INCONCLUSIVE`: the security observation is ambiguous or unverified.
+
+The observer status is separate from the observed allowed/denied decision. Only
+a `verified` observation may carry a typed decision. Unknown statuses, raw
+strings such as `"403"`, conflicting result fields, undeclared assertion IDs,
+and spoofed spec digests fail closed. This ensures that future adapters cannot
+accidentally convert a timeout, unsupported environment or API error into a
+security assertion PASS.
+
+Example using **manually constructed offline fixture data**:
+
+~~~python
+from slipcage_engine import (
+    load_spec, Observation, ObservationStatus, ObservedDecision,
+    result_for_observation,
+)
+
+spec = load_spec("examples/experiments/rbac-pod-create-denied.yaml")
+observation = Observation(ObservationStatus.VERIFIED, ObservedDecision.DENIED)
+result = result_for_observation(spec, "restricted-create-pod", observation)
+assert result.outcome.value == "PASS"
+assert result.to_dict()["evidence_status"] == "not_collected"
+~~~
+
+**Important:** A caller can construct an `Observation(VERIFIED, ...)`. This
+means the future trusted adapter *claims* it verified identity, request,
+resource and response. SC-07 does not check those facts, authenticate any
+artifact, contact Kubernetes, produce an evidence bundle, or make the result
+replayable. The emitted `evidence_status: not_collected` is deliberate;
+never present this purely synthetic result as a proven security boundary.
+There is no CLI command to evaluate or produce these results yet.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
@@ -52,6 +93,6 @@ CI now installs the package in the ephemeral GitHub runner, validates the sample
 
 ## Next separately approved milestones
 
-SC-07 introduces typed security assertion outcomes; SC-08 a bounded, offline fixture executor; SC-09 canonical evidence bundles; SC-10 differential comparison; SC-11 reporting. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
+SC-07 adds typed outcomes without a runner; SC-08 introduces a bounded, offline fixture executor; SC-09 canonical evidence bundles; SC-10 differential comparison; SC-11 reporting. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
 
 See [contract](EXPERIMENT_CONTRACT.md), [roadmap](V1_ROADMAP.md), [security rules](../SECURITY.md) and [human review/release gates](DEVELOPMENT_WORKFLOW.md).

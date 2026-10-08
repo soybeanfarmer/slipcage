@@ -9,4 +9,21 @@ from .specification import (
     validate_spec_bytes,
 )
 
-__all__ = ["ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes"]
+from .results import (
+    AssertionOutcome,
+    AssertionResult,
+    ExpectedDecision,
+    Observation,
+    ObservedDecision,
+    ObservationStatus,
+    ReasonCode,
+    ResultValidationError,
+    result_for_observation,
+)
+
+__all__ = [
+    "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
+    "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
+    "ObservedDecision", "ObservationStatus", "ReasonCode", "ResultValidationError",
+    "result_for_observation",
+]
