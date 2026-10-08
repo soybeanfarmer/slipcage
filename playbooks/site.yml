@@ -52,6 +52,8 @@
           - python3-venv
           - python3-pip
           - restic
+          - busybox-static
+          - cpio
           - sqlite3
           - jq
           - unzip
@@ -365,7 +367,20 @@
         group: root
         mode: '0755'
 
-    - name: Install KVM readiness probe (manual only)
+    - name: Install reproducible microguest initramfs builder
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/build-microguest.sh"
+        dest: /usr/local/lib/slipcage/build-microguest
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Build a disposable, networkless initramfs from distro busybox-static
+      ansible.builtin.command:
+        argv:
+          - /usr/local/lib/slipcage/build-microguest
+        creates: /usr/local/lib/slipcage/microguest.cpio.gz
+
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../scripts/slipcage-kvm-probe.py"
         dest: /usr/local/lib/slipcage/kvm-probe.py
@@ -381,7 +396,22 @@
         group: root
         mode: '0644'
 
-    - name: Install opt-in encrypted offsite backup runner
+    - name: Install sandboxed, manual microguest boot unit
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../systemd/slipcage-kvm-boot.service"
+        dest: /etc/systemd/system/slipcage-kvm-boot.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restrict offsite-credential directory
+      ansible.builtin.file:
+        path: /etc/slipcage
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../scripts/slipcage-offsite-backup.sh"
         dest: /usr/local/sbin/slipcage-offsite-backup
