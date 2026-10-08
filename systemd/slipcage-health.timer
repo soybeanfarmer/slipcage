@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Slipcage operational health hourly (read-only checks)
+
+[Timer]
+OnBootSec=8min
+OnUnitInactiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+Unit=slipcage-health.service
+
+[Install]
+WantedBy=timers.target
