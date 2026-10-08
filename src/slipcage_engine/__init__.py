@@ -50,6 +50,11 @@ from .vm_host_observe import (
     HostObservationError, LocalHostObservation, inspect_local_host,
 )
 
+from .vm_qemu_blueprint import (
+    QemuBlueprintError, QemuLaunchDisabled, QemuLaunchBlueprint,
+    build_qemu_blueprint, launch_qemu,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -72,4 +77,6 @@ __all__ = [
     "VMHostReadinessError", "VMHostSnapshot", "HostReadinessAssessment",
     "validate_host_snapshot_bytes", "load_host_snapshot", "assess_host_snapshot",
     "HostObservationError", "LocalHostObservation", "inspect_local_host",
+    "QemuBlueprintError", "QemuLaunchDisabled", "QemuLaunchBlueprint",
+    "build_qemu_blueprint", "launch_qemu",
 ]
