@@ -15,7 +15,7 @@ The planned product will run reviewed, non-destructive security assertions again
 | Research intelligence | GitHub Advisory/NVD metadata ingestion, scoring, SQLite state, guarded Dagu review queue | Verified vulnerability reproduction |
 | Deployment and operations | Ansible/systemd, reviewed GitHub releases, outbound release polling, drain guard, local backup and scratch-restore assurance, passive health checks | Universal unattended recovery; verified independent disaster recovery |
 | Disposable VM foundation | Manual-only, bounded QEMU/KVM benign microguest boot and fixed arithmetic/SHA-256 test, private JSON/log evidence and audits | Dedicated K3s VMs; VM-based security assertions; hostile-code isolation |
-| Experiment engine | Fixed benign test profile and read-only evidence audit | General versioned experiment specs, assertion semantics, differential comparison and replay |
+| Experiment engine | Offline versioned spec, typed results, synthetic fixture runner/bundles/comparison/reports; existing fixed benign VM profile | Real Kubernetes adapter, verified security observations and replay |
 | Hosted application | None | React dashboard, Cloudflare API/D1/R2, distributed worker leases and multi-tenant authorization |
 
 Current documentation and tests establish implemented code paths, not live production results. See [current vs. target architecture](docs/ARCHITECTURE.md), [product vision](docs/PRODUCT_VISION.md), [v1 milestones](docs/V1_ROADMAP.md), and [experiment interface proposal](docs/EXPERIMENT_CONTRACT.md).
@@ -168,6 +168,24 @@ sample RBAC profile is schema data only; it does not provision VMs or Kubernetes
 connect to Cloudflare, or grant approval to run a workload. This package is
 *not installed on the VPS by the existing Ansible playbook*. See
 [contract CLI and limitations](docs/ENGINE_CLI.md).
+
+## Pinned K3s VM design — SC-12 (offline only)
+
+The new `slipcage plan-vm` command validates a non-executable,
+version-pinned **design** and estimates the resources for one sequential
+K3s VM from strictly operator-reported host figures. Its included fixtures
+contain fake digests and are **not deployable images or a real VPS capacity
+measurement**:
+
+~~~bash
+slipcage plan-vm examples/vm-plans/k3s-synthetic-design.json \
+  --inventory examples/vm-plans/host-capacity-synthetic.json --json
+~~~
+
+The output always states that artifact verification, KVM/guest boot, network
+isolation and execution authorization have **not** happened. This change
+does not enable a real `run` or VM-provisioning command. See
+[SC-12 pinned VM feasibility](docs/K3S_VM_FEASIBILITY.md).
 
 ## Development and testing
 

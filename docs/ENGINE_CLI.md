@@ -303,6 +303,25 @@ VPS through Ansible, boot QEMU/K3s, run untrusted scripts, or contact Cloudflare
 The next phase begins with pinned VM definitions and an independently approved,
 bounded live-environment feasibility test.
 
+## SC-12: offline pinned VM planning (no VM execution)
+
+SC-12 adds a strict JSON-based, **non-executable** K3s VM intent, read-only
+pin validation and an operator-reported capacity estimator.
+
+~~~bash
+slipcage plan-vm examples/vm-plans/k3s-synthetic-design.json \
+  --inventory examples/vm-plans/host-capacity-synthetic.json --json
+~~~
+
+**Those inputs are synthetic tests, not real verified images or a live VPS
+inventory.** The output always sets `execution_authorized: false`,
+`artifacts_verified: false`, `kvm_verified_on_target_host: false`,
+`k3s_boot_verified: false`, and `vm_launched: false`. Exit code 0 means
+valid *design data only*; 2 means an invalid plan or reported inventory.
+No QEMU binary is invoked, disk is created, network changed, or worker
+installed. See [SC-12 guest pinning and feasibility](K3S_VM_FEASIBILITY.md)
+for resource assumptions, missing real artifact proofs, and manual gates.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
@@ -311,6 +330,6 @@ CI now installs the package in the ephemeral GitHub runner, validates the sample
 
 ## Next separately approved milestones
 
-SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds synthetic, evidence-gated differential comparison; SC-11 provides offline synthetic reports and a complete reproducible fixture demonstration. Real environment execution, evidence and comparison require separately authorized later milestones. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
+SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds synthetic, evidence-gated differential comparison; SC-11 provides offline synthetic reports and a complete reproducible fixture demonstration. SC-12 adds non-executable VM design validation, without measured host capability or genuine image/cluster evidence. Real environment execution, evidence and comparison require separately authorized later milestones. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
 
 See [contract](EXPERIMENT_CONTRACT.md), [roadmap](V1_ROADMAP.md), [security rules](../SECURITY.md) and [human review/release gates](DEVELOPMENT_WORKFLOW.md).

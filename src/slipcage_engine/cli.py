@@ -16,6 +16,7 @@ from .comparison import ChangeKind, compare_fixture_bundles
 from .reports import ReportError, render_fixture_report
 from .workflow import DemoError, create_fixture_demo, verify_fixture_demo
 from .specification import SpecValidationError, load_spec
+from .vm_plan import VMPlanError, assess_vm_plan, load_vm_plan, load_host_inventory
 
 EXIT_ASSERTION_NOT_PASS = 1
 EXIT_INVALID = 2
@@ -71,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify_demo.add_argument("directory", help="Private synthetic demo root")
     verify_demo.add_argument("--json", action="store_true", help="Machine-readable verification summary")
 
+    vm_plan = commands.add_parser("plan-vm", help="Validate non-executable pinned K3s VM intent and declared capacity (SC-12)")
+    vm_plan.add_argument("file", help="Local strict JSON VM design, NOT a QEMU config or executable")
+    vm_plan.add_argument("--inventory", help="Optional strictly validated operator-reported host inventory JSON")
+    vm_plan.add_argument("--json", action="store_true", help="Machine-readable offline feasibility assessment")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -86,7 +92,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command in ("compare-fixtures", "report-fixtures"):
+        if args.command == "plan-vm":
+            definition = load_vm_plan(args.file)
+            inventory = load_host_inventory(args.inventory) if args.inventory is not None else None
+            vm_assessment = assess_vm_plan(definition, inventory)
+        elif args.command in ("compare-fixtures", "report-fixtures"):
             comparison = compare_fixture_bundles(args.baseline, args.candidate)
             if args.command == "report-fixtures":
                 fixture_report = render_fixture_report(comparison)
@@ -105,9 +115,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "plan-vm":
+        if args.json:
+            print(vm_assessment.canonical_json().decode("ascii"))
+        else:
+            print("NON-EXECUTABLE VM DESIGN ONLY; "
+                  f"plan={vm_assessment.plan_id}; capacity={vm_assessment.capacity_result}; "
+                  "artifacts_verified=false; execution_authorized=false; vm_launched=false")
+        return 0  # Schema validation success ONLY, never boot readiness.
 
     if args.command in ("demo-fixtures", "verify-demo"):
         if args.json:

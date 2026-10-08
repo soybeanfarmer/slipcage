@@ -94,6 +94,26 @@ jobs:
           assert report.stdout.encode() == (output / "report.md").read_bytes()
           assert "OFFLINE SIMULATION ONLY" in report.stdout
           PYCODE
+          python - <<'PYCODE'
+          import json
+          import subprocess
+
+          proc = subprocess.run([
+              "slipcage", "plan-vm", "examples/vm-plans/k3s-synthetic-design.json",
+              "--inventory", "examples/vm-plans/host-capacity-synthetic.json",
+              "--json",
+          ], capture_output=True, text=True, check=False)
+          assert proc.returncode == 0, (proc.returncode, proc.stderr)
+          result = json.loads(proc.stdout)
+          assert result["capacity_result"] == "fits_reported_capacity"
+          assert result["status"] == "design_only"
+          assert result["pin_status"] == "synthetic_fixture"
+          assert result["artifacts_verified"] is False
+          assert result["execution_authorized"] is False
+          assert result["kvm_verified_on_target_host"] is False
+          assert result["k3s_boot_verified"] is False
+          assert result["vm_launched"] is False
+          PYCODE
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

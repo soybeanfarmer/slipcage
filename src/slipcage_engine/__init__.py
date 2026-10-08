@@ -24,6 +24,12 @@ from .comparison import (
 from .reports import FixtureReport, ReportError, render_fixture_report
 from .workflow import DemoError, DemoVerification, create_fixture_demo, verify_fixture_demo
 
+from .vm_plan import (
+    VMPlanError, K3sVMPlan, ReportedHostInventory, VMFeasibility,
+    validate_vm_plan_bytes, load_vm_plan, validate_host_inventory_bytes,
+    load_host_inventory, assess_vm_plan,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -35,4 +41,7 @@ __all__ = [
     "compare_fixture_bundles",
     "FixtureReport", "ReportError", "render_fixture_report",
     "DemoError", "DemoVerification", "create_fixture_demo", "verify_fixture_demo",
+    "VMPlanError", "K3sVMPlan", "ReportedHostInventory", "VMFeasibility",
+    "validate_vm_plan_bytes", "load_vm_plan", "validate_host_inventory_bytes",
+    "load_host_inventory", "assess_vm_plan",
 ]
