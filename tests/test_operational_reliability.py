@@ -39,6 +39,11 @@ class HealthTests(unittest.TestCase):
         self.guest.mkdir()
         self.fault = self.root / "fault"
         self.fault.mkdir()
+        self.assurance = self.root / "assurance-status.json"
+        self.assurance.write_text(json.dumps({
+            "schema_version": 1, "checked_utc": (self.now - timedelta(hours=6)).isoformat(),
+            "passed": True, "latest_backup": "backup-fixture",
+        }))
         self.status = self.root / "health" / "status.json"
         self.status.parent.mkdir()
 
@@ -63,7 +68,8 @@ class HealthTests(unittest.TestCase):
     def inspect(self, **overrides):
         args = dict(now=self.now, backup_root=self.backup,
                     deploy_sha=self.sha, guest_runs=self.guest,
-                    fault_runs=self.fault, unit_probe=self.unit,
+                    fault_runs=self.fault, assurance_status=self.assurance,
+                    unit_probe=self.unit,
                     disk_usage=self.disk)
         args.update(overrides)
         return health.inspect(**args)
@@ -134,6 +140,23 @@ class HealthTests(unittest.TestCase):
         self.assertIn("disk_space_low", result["issues"])
         self.assertIn("inactive_unit:slipcage-backup.timer", result["issues"])
         self.assertIn("failed_or_unknown_unit:slipcage-backup.service", result["issues"])
+
+    def test_overdue_or_failed_weekly_restore_assurance_alerts(self):
+        record = json.loads(self.assurance.read_text())
+        record["passed"] = False
+        self.assurance.write_text(json.dumps(record))
+        result = self.inspect()
+        self.assertFalse(result["healthy"])
+        self.assertIn("restore_assurance:restore_check_failed", result["issues"])
+        record["passed"] = True
+        self.assurance.write_text(json.dumps(record))
+        result = self.inspect(now=self.now + timedelta(days=11))
+        self.assertIn("restore_assurance:restore_check_stale_or_future", result["issues"])
+
+    def test_missing_weekly_restore_assurance_is_not_silently_healthy(self):
+        self.assurance.unlink()
+        result = self.inspect()
+        self.assertIn("restore_assurance:never_checked", result["issues"])
 
     def test_stale_incomplete_run_detected_without_deletion(self):
         run = self.guest / "run-20261001T010000000000Z-fixture"

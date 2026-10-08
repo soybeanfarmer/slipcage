@@ -177,6 +177,25 @@ See [Operational Reliability](docs/OPERATIONAL_RELIABILITY.md).
 The original daily local backup remains enabled. Encrypted offsite
 backups and risky research remain deferred.
 
+## v0.10 Operational Assurance & Alerting (proposed)
+
+Adds a **weekly, resource-bounded, networkless scratch restore** of the
+latest verified local SQLite/report backup, with persistent private pass/fail
+status. Hourly health checks warn on a failed, missing or stale (over 10-day)
+restore assurance result. The existing daily local backup and its retention
+policy remain unchanged.
+
+Adds a **preview-first, opt-in HTTPS webhook** dispatcher with issue-set
+deduplication, fail-closed freshness checks and successful-delivery
+acknowledgment. No external alert URL, credentials, or alert timer is enabled
+by the deployment: enabling external delivery requires a separately
+approved endpoint and operator action.
+
+Read [Operational Assurance](docs/OPERATIONAL_ASSURANCE.md) and the
+[Incident Runbooks](docs/INCIDENT_RUNBOOKS.md) for validation commands and
+non-destructive triage. Guest execution remains manual, fuzzing is
+disabled, and encrypted off-server backups remain deferred.
+
 ## Useful commands
 
 ```bash

@@ -1,0 +1,11 @@
+[Unit]
+Description=OPTIONAL Slipcage HTTPS health notification scan (operator must enable)
+
+[Timer]
+OnActiveSec=5min
+OnUnitInactiveSec=1h
+RandomizedDelaySec=10min
+Unit=slipcage-alert-dispatch.service
+
+[Install]
+WantedBy=timers.target

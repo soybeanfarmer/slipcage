@@ -1,0 +1,33 @@
+[Unit]
+Description=Opt-in local Slipcage health notification dispatcher (disabled until configured)
+After=slipcage-health.service
+ConditionPathExists=/etc/slipcage/health-webhook.url
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /usr/local/lib/slipcage/alert-dispatch.py --send
+TimeoutStartSec=20s
+UMask=0077
+StateDirectory=slipcage-alerts
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadOnlyPaths=/var/lib/slipcage-health /etc/slipcage
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+AmbientCapabilities=
+MemoryMax=128M
+CPUQuota=25%
+TasksMax=16
+LimitNOFILE=128
+StandardOutput=journal
+StandardError=journal
