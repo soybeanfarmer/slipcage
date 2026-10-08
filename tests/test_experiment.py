@@ -151,6 +151,19 @@ class ControlledExperimentTests(unittest.TestCase):
         self.assertEqual(report["completed_cycles"], 1)
         self.assertEqual(report["first_failure"], 1)
 
+    def test_missing_or_invalid_resource_measurement_fails_closed(self):
+        script = self.make_probe()
+        source = script.read_text()
+        for replacement in ["None", "'not-a-number'", "float('nan')"]:
+            script.write_text(source.replace("'qemu_peak_rss_kib': 14000",
+                                              "'qemu_peak_rss_kib': " + replacement))
+            report = lifecycle.run_lifecycle(1, probe=script,
+                                             state=self.root / "state",
+                                             timeout=5, profile="experiment")
+            self.assertFalse(report["passed"])
+            self.assertEqual(report["completed_cycles"], 1)
+            self.assertEqual(report["first_failure"], 1)
+
     def test_experiment_cycle_limit_and_profile_allowlist(self):
         for value in [4, 5, 100]:
             with self.assertRaises(ValueError):
