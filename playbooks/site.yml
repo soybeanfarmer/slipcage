@@ -15,6 +15,32 @@
           - ansible_facts['architecture'] == 'x86_64'
         fail_msg: "Use the Ubuntu 24.04 LTS x86-64 image; adjust and test for other platforms."
 
+    - name: Detect existing Dagu installation
+      ansible.builtin.stat:
+        path: /etc/systemd/system/isolab-dagu.service
+      register: existing_dagu
+
+    - name: Detect deployment barrier
+      ansible.builtin.stat:
+        path: /usr/local/bin/slipcage-guard
+      register: existing_guard
+
+    - name: Refuse unsafe unattended migration from unguarded Dagu
+      ansible.builtin.assert:
+        that:
+          - (not existing_dagu.stat.exists) or existing_guard.stat.exists
+        fail_msg: "Existing Dagu has no deployment barrier. Drain manually before migrating."
+
+    - name: Enter maintenance and drain guarded research jobs
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/slipcage-guard
+          - begin
+          - --wait-seconds
+          - "{{ deploy_drain_seconds | string }}"
+      when: existing_guard.stat.exists
+      changed_when: true
+
   tasks:
     - name: Install core packages
       ansible.builtin.apt:
@@ -32,6 +58,32 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+
+    - name: Create deployment state directory
+      ansible.builtin.file:
+        path: /var/lib/slipcage
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create root-owned deployment lock
+      ansible.builtin.file:
+        path: /var/lib/slipcage/deployment.lock
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+        modification_time: preserve
+        access_time: preserve
+
+    - name: Install deployment barrier
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/slipcage-guard.py"
+        dest: /usr/local/bin/slipcage-guard
+        owner: root
+        group: root
+        mode: '0755'
 
     - name: Install optional QEMU analysis and build tools
       ansible.builtin.apt:
@@ -126,6 +178,22 @@
         group: root
         mode: '0755'
 
+    - name: Create application helper scripts directory
+      ansible.builtin.file:
+        path: /opt/isolab/scripts
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install reviewed discovery script
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/discover.sh"
+        dest: /opt/isolab/scripts/discover.sh
+        owner: root
+        group: root
+        mode: '0755'
+
     - name: Install server verification helper
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../scripts/verify-server.sh"
@@ -150,6 +218,7 @@
         owner: isolab
         group: isolab
         mode: '0600'
+      notify: Restart Dagu
 
     - name: Deploy Dagu systemd service
       ansible.builtin.template:
@@ -167,10 +236,22 @@
         enabled: true
         state: started
 
+    - name: Apply all pending service restarts before resuming
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify Dagu is active
+      ansible.builtin.command: systemctl is-active isolab-dagu.service
+      changed_when: false
+
     - name: Check Dagu version
       ansible.builtin.command: /usr/local/bin/dagu version
       changed_when: false
       register: dagu_version_result
+
+    - name: Release deployment maintenance after health checks
+      ansible.builtin.command: /usr/local/bin/slipcage-guard end
+      when: existing_guard.stat.exists
+      changed_when: true
 
     - name: Display final message
       ansible.builtin.debug:
