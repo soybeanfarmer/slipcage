@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Slipcage most recent local backup with a bounded scratch restore weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 UTC
+RandomizedDelaySec=90min
+Persistent=true
+Unit=slipcage-assurance.service
+
+[Install]
+WantedBy=timers.target
