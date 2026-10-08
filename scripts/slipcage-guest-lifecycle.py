@@ -26,7 +26,7 @@ MAX_CYCLES = 5
 KEEP_RUNS = 20
 TIMEOUT_SECONDS = 85
 LOG_TAIL_BYTES = 16384
-RUN_DIRECTORY = re.compile(r"^run-\d{8}T\d{6}Z-[a-zA-Z0-9_]+$")
+RUN_DIRECTORY = re.compile(r"^run-\d{8}T\d{12}Z-[a-zA-Z0-9_]+$")
 
 
 def utc_stamp() -> str:
@@ -149,7 +149,7 @@ def run_lifecycle(cycles: int, *, probe: Path = DEFAULT_PROBE,
     with (state / ".cycle.lock").open("a+b") as lock:
         # Do not allow overlapping systemd template instances.
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        start = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        start = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         directory = Path(tempfile.mkdtemp(dir=runs, prefix=f"run-{start}-"))
         os.chmod(directory, 0o700)
         results = []
