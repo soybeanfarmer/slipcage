@@ -108,3 +108,7 @@ QEMU, prove KVM/host readiness or authorize execution. See
 [read-only VM artifact preflight](VM_ASSET_PREFLIGHT.md). Issue #23 remains
 open for **trusted artifact provenance** and independently checked VPS
 measurements/permission.
+
+## SC-13b2 offline trust/report checks
+
+SC-13b2 adds bounded detached Ed25519 statement verification against an **independently supplied public key** and conservative parsing of operator-reported host snapshots. Neither is a publisher identity check, live KVM probe or permission to start a guest. See [SC-13b2 documentation](VM_PROVENANCE_HOST_GATE.md).

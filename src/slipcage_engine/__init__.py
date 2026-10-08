@@ -40,6 +40,12 @@ from .vm_assets import (
     VMAssetError, VerifiedLocalAsset, VMAssetPreflight, verify_local_vm_assets,
 )
 
+from .vm_provenance import VMProvenanceError, VMProvenanceCheck, verify_provenance
+from .vm_host_readiness import (
+    VMHostReadinessError, VMHostSnapshot, HostReadinessAssessment,
+    validate_host_snapshot_bytes, load_host_snapshot, assess_host_snapshot,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -58,4 +64,7 @@ __all__ = [
     "VMFailureReason", "VMEvent", "VMLifecycleSimulation",
     "simulate_vm_lifecycle", "simulate_sequential_pair",
     "VMAssetError", "VerifiedLocalAsset", "VMAssetPreflight", "verify_local_vm_assets",
+    "VMProvenanceError", "VMProvenanceCheck", "verify_provenance",
+    "VMHostReadinessError", "VMHostSnapshot", "HostReadinessAssessment",
+    "validate_host_snapshot_bytes", "load_host_snapshot", "assess_host_snapshot",
 ]
