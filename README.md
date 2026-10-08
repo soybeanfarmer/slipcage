@@ -108,26 +108,58 @@ Administrator-created DAGs that bypass `slipcage-guard` are not protected.
 An unguarded existing installation must be migrated manually after confirming
 all its jobs are idle. Fresh servers install the barrier before Dagu starts.
 
-### CI/CD prerequisites
+### Zero-cost, self-contained pull-based deployment
 
-`.github/workflows/deploy.yml` is **manual only** and restricted to `main`.
-Set up a `production` GitHub Environment with mandatory approval and access
-restricted to `main`. Create a Tailscale OIDC workload identity with the
-`auth_keys` permission, restricted to `tag:slipcage-ci`, and limit SSH
-access to the research VPS.
+The VPS polls GitHub's **latest published stable release** over outbound HTTPS
+every 15 minutes using a native `systemd` timer. It accepts only version
+tags on `main` with a successful GitHub Actions `validate` check on the
+release's exact commit. It then calls Ansible locally and uses the existing
+maintenance/drain guard. GitHub never opens a connection into the VPS.
 
-Configure these environment secrets: `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE`,
-`DEPLOY_SSH_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`. Add environment variables
-`SLIPCAGE_TAILSCALE_HOST` and `SLIPCAGE_DEPLOY_USER`.
+A maintainer explicitly approves each deployment by publishing a stable
+GitHub Release using the `Approve Slipcage Release` manual workflow on
+`main`, optionally gated by the `production` GitHub Environment.
 
-Verify the server's SSH host key through a trusted channel; **never** blindly
-accept `ssh-keyscan` output. Use a dedicated deployment SSH key and tightly
-control the deploy user's sudo rights. The initial installer requires
-root-level package and service changes. Pin third-party GitHub actions to
-reviewed commit hashes before allowing unattended deployments.
+There is **no VPN, Tailscale, GitHub SSH deployment key, webhook, public
+dashboard, or permanent GitHub Actions runner**.
 
-Deployment is not yet live-tested. It requires the server, network access,
-SSH credentials, and configured GitHub environment.
+#### One-time bootstrap on the new Ubuntu 24.04 VPS
+
+After the PR is merged into `main`, connect via your usual administrative
+SSH session (or the provider console):
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/soybeanfarmer/slipcage.git
+cd slipcage
+# Review this root-level installer before running it.
+sudo bash scripts/bootstrap-pull.sh
+```
+
+This installs a root-owned `slipcage-pull-deploy.timer`, its service, a local
+Ansible inventory, and the updater. Nothing is deployed until an approved
+release is published. To check or initiate polling:
+
+```bash
+systemctl list-timers slipcage-pull-deploy.timer
+sudo systemctl start slipcage-pull-deploy.service
+sudo journalctl -u slipcage-pull-deploy.service -n 100 --no-pager
+```
+
+GitHub → Actions → `Approve Slipcage Release` → Run workflow from `main`,
+enter a version such as `v0.1.0`, and approve the `production` environment
+if configured. Review CI before publishing and protect releases/tags and
+the `main` branch against unauthorized modification.
+
+The server pins deployment to a Git commit and stores the last successful SHA
+in `/var/lib/slipcage/deployed-sha`. If the updater cannot check GitHub,
+the release is not on `main`, the CI check is absent, or the deployment fails,
+the VPS does not advance its successful-release marker. Research continues
+with the existing installation or remains in maintenance on a post-drain
+failure. This is a starting design, **not** a complete rollback mechanism.
+
+Do not activate unsafe, long-running workloads until on-server deployment
+tests, durable queue reconciliation, and recovery verification are complete.
 
 ## Operations / controls
 
