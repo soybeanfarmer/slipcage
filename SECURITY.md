@@ -12,3 +12,14 @@ The ServaRica instance is itself a virtual machine on infrastructure owned by a 
 - **Human review required** for modifying worker code, high-risk reproducers, source builds of untrusted submissions, unsafe packages, and research that could cross isolation boundaries.
 
 If a future reproduction might escape from a guest into the local VPS, assume the outer host/provider could still be exposed. Use a dedicated physical machine under your control for such high-impact tests, or a provider-approved environment explicitly designed for them.
+
+## Guarded deployment boundary
+
+Reviewed Dagu workflows hold a shared deployment lock throughout research.
+The installer enters maintenance to prevent new jobs and obtains an exclusive
+lock before modifying installed files. It only removes maintenance after
+the daemon's health check succeeds. Failed installations remain paused.
+The guard cannot restrict arbitrary commands created by a compromised Dagu
+administrator and is not a sandbox. Durable queue recovery, artifact backup,
+and integration testing are required before deploying offensive or long-running
+experiments.
