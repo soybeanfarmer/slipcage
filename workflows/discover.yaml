@@ -1,11 +1,11 @@
 name: discover
-# Poll published data only; never execute advisory-supplied code.
+# One guarded step protects the entire discovery transaction.
 schedule: "17 */6 * * *"
 queue: metadata
 timeout_sec: 900
 steps:
-  - id: ingest
-    run: /usr/bin/python3 /opt/isolab/app/isolab.py sync --db /srv/isolab/research.sqlite3
-  - id: refill
-    depends: ingest
-    run: /usr/bin/python3 /opt/isolab/app/isolab.py enqueue --db /srv/isolab/research.sqlite3 --workflow /var/lib/dagu/dags/review-candidate.yaml --max-outstanding 3
+  - id: discover
+    action: exec
+    with:
+      command: /usr/local/bin/slipcage-guard
+      args: ["run", "/opt/isolab/scripts/discover.sh"]
