@@ -137,6 +137,25 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(self.state(), "reviewed")
         self.assertEqual(len(list(Path(out).glob("candidate-*.md"))), 1)
 
+    def test_crash_after_report_before_commit_retries_without_duplicate_file(self):
+        first = recovery.claim_next(self.conn, 3, NOW)
+        out = str(self.root / "reports")
+        with patch.object(recovery, "boot_id", return_value="boot"), patch.object(
+                recovery, "process_start", return_value="tick"):
+            self.assertTrue(recovery.start(self.conn, ID, first[1], NOW))
+        # Simulate a process termination after its report was durably written,
+        # but before SQLite was marked reviewed.
+        isolab.report(self.db, out, ID, commit_status=False, stable_name=True)
+        self.assertEqual(self.state(), "running")
+        with patch.object(recovery, "worker_alive", return_value=False):
+            self.assertEqual(recovery.reconcile(
+                self.conn, NOW + timedelta(minutes=3))["running_reclaimed"], 1)
+        second = recovery.claim_next(self.conn, 3, NOW + timedelta(minutes=3))
+        self.assertNotEqual(second[1], first[1])
+        self.assertEqual(isolab.run_review(self.db, out, ID, second[1]), 0)
+        self.assertEqual(self.state(), "reviewed")
+        self.assertEqual(len(list(Path(out).glob("candidate-*.md"))), 1)
+
     def test_boot_id_changes_make_worker_provably_dead(self):
         with patch.object(recovery, "boot_id", return_value="new-boot"):
             self.assertFalse(recovery.worker_alive(123, "1234", "old-boot"))
