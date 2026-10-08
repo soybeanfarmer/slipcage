@@ -1,6 +1,6 @@
 # Proposed experiment and evidence contracts (design only)
 
-**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; SC-09 adds **local synthetic-only** evidence bundles and read-only verification. SC-10 now implements **synthetic evidence-gated differential comparison**. No real Kubernetes executor, environment-to-environment comparator, report generator, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
+**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; SC-09 adds **local synthetic-only** evidence bundles and read-only verification. SC-10 now implements **synthetic evidence-gated differential comparison**. SC-11 adds **deterministic JSON/Markdown reports and an integrated synthetic fixture demo**. No real Kubernetes executor, environment-to-environment comparator, authenticated environment evidence, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
 
 ## Goals and boundary
 
@@ -108,6 +108,17 @@ or `unchanged_fail`. A pair with PASS/FAIL and FAIL/PASS assertions is
 are `incomparable`. The real `compare` CLI remains disabled. Every output
 explicitly says it is synthetic and does **not** verify real Kubernetes
 security behavior. See [offline comparator rules](ENGINE_CLI.md).
+
+### SC-11 — integrated synthetic evidence and reports
+
+The offline `report-fixtures` command generates deterministic JSON and
+Markdown from locally verified SC-09 evidence and SC-10 comparisons. The
+`demo-fixtures` command creates two privately separated synthetic bundles
+plus `report.json`, `report.md`, and a final completion manifest, and
+`verify-demo` rechecks them all. A synthetic PASS/FAIL difference is shown
+as a *simulated regression*, not a real Kubernetes result; damaged or missing
+input is incomparable or invalid, never a security finding. See
+[SC-11 implementation and limitations](ENGINE_CLI.md).
 
 ## Minimum evidence bundle (proposed)
 

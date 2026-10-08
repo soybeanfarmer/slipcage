@@ -59,6 +59,41 @@ jobs:
           assert comparison["security_test_executed"] is False
           assert comparison["real_security_evidence_verified"] is False
           PYCODE
+          python - "$fixture_scratch" <<'PYCODE'
+          import json
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          scratch = Path(sys.argv[1])
+          output = scratch / "integrated-proof"
+          spec = "examples/experiments/rbac-pod-create-denied.yaml"
+          cmd = ["slipcage", "demo-fixtures", spec,
+                 "--baseline-scenario", "denied",
+                 "--candidate-scenario", "allowed",
+                 "--output", str(output), "--json"]
+          created = subprocess.run(cmd, capture_output=True, text=True, check=False)
+          assert created.returncode == 1, (created.returncode, created.stderr)
+          data = json.loads(created.stdout)
+          assert data["classification"] == "regression"
+          assert data["simulated"] is True
+          assert data["real_security_evidence_verified"] is False
+
+          verified = subprocess.run(
+              ["slipcage", "verify-demo", str(output), "--json"],
+              capture_output=True, text=True, check=False,
+          )
+          assert verified.returncode == 1, (verified.returncode, verified.stderr)
+          assert json.loads(verified.stdout) == data
+          report = subprocess.run(
+              ["slipcage", "report-fixtures", str(output / "baseline"),
+               str(output / "candidate"), "--format", "markdown"],
+              capture_output=True, text=True, check=False,
+          )
+          assert report.returncode == 1, (report.returncode, report.stderr)
+          assert report.stdout.encode() == (output / "report.md").read_bytes()
+          assert "OFFLINE SIMULATION ONLY" in report.stdout
+          PYCODE
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

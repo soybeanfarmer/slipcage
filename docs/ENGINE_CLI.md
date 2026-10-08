@@ -1,6 +1,6 @@
 # Slipcage offline experiment contract engine — v0.12 first implementation
 
-This includes SC-05/SC-06 contract validation, SC-07 typed results, SC-08 **synthetic** fixture execution, SC-09 private synthetic evidence bundles, and SC-10 offline differential comparison. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
+This includes SC-05/SC-06 contract validation, SC-07 typed results, SC-08 **synthetic** fixture execution, SC-09 private synthetic evidence bundles, SC-10 offline differential comparison, and SC-11 deterministic reporting and complete synthetic demonstrations. It is still a local-only Python package, not a real infrastructure security test runner. The existing Dagu research lab, QEMU guest tests, deployment and backups are unchanged.
 
 ## Install and run locally
 
@@ -234,6 +234,75 @@ authorship, or separate infrastructure isolation. Output explicitly states
 `simulated: true`, `security_test_executed: false`, and
 `real_security_evidence_verified: false`.
 
+## SC-11: deterministic reports and integrated offline proof
+
+SC-11 completes the first **synthetic, offline** end-to-end path:
+
+1. Validate the strict v1alpha1 experiment specification.
+2. Produce two separate private SC-09 packaged-fixture evidence bundles.
+3. Reverify both and compare every declared assertion using SC-10.
+4. Render stable machine-readable JSON and human-readable Markdown.
+5. Publish a final demo manifest with SHA-256 hashes **after** both report files are written.
+6. Independently reverify all sources and re-render both reports byte-for-byte.
+
+### Read-only reporting from existing fixture bundles
+
+~~~bash
+slipcage report-fixtures ./baseline-fixture ./candidate-fixture --format json
+slipcage report-fixtures ./baseline-fixture ./candidate-fixture --format markdown
+~~~
+
+This command checks both source bundles before rendering. **Same pair of
+unmodified bundles yields identical report bytes**. Reports include exact
+source manifest digests, so two newly generated bundles may differ in byte
+content because their evidence creation timestamps differ; their semantic
+assertion classification remains stable. Missing/corrupted/incompatible
+source evidence returns an *incomparable* report, never a confirmed regression.
+
+### One-command complete synthetic demonstration
+
+Use an **existing, private (0700), operator-controlled output parent**.
+No path is automatically cleaned or overwritten.
+
+~~~bash
+scratch="$(mktemp -d)"
+slipcage demo-fixtures examples/experiments/rbac-pod-create-denied.yaml \
+  --baseline-scenario denied --candidate-scenario allowed \
+  --output "$scratch/proof" --json
+slipcage verify-demo "$scratch/proof" --json
+~~~
+
+Both commands return **exit code 1** for this deliberately injected
+synthetic PASS -> FAIL regression. A failed security assertion is not a failed
+artifact-generation operation; code 1 distinguishes the detected synthetic
+regression from code 4 for incomparable source evidence (report-fixtures), code
+2 for invalid input or incomplete demo data, and code 0 for comparable cases
+without a regression.
+
+The proof directory has this fixed layout:
+
+~~~text
+proof/                         # private 0700, never overwritten
+  baseline/                    # independently SC-09-verified synthetic bundle
+  candidate/                   # independently SC-09-verified synthetic bundle
+  report.json                  # canonical deterministic JSON, private 0600
+  report.md                    # deterministic Markdown, private 0600
+  manifest.json                # COMPLETE marker written last, private 0600
+~~~
+
+A partial failure leaves the directory and original evidence untouched but
+cannot satisfy verify-demo. Verification rejects unknown entries, tampering,
+unexpected permissions, symlinks, invalid bundles, mismatched source fingerprints
+and report files that do not match independent rendering. Output remains
+explicitly **synthetic**, without signed attestation, live Kubernetes observations
+or true environment provenance.
+
+**Real environment commands remain disabled:** slipcage run, slipcage compare,
+and slipcage report exit 3. The offline fixture commands do not install on the
+VPS through Ansible, boot QEMU/K3s, run untrusted scripts, or contact Cloudflare.
+The next phase begins with pinned VM definitions and an independently approved,
+bounded live-environment feasibility test.
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
@@ -242,6 +311,6 @@ CI now installs the package in the ephemeral GitHub runner, validates the sample
 
 ## Next separately approved milestones
 
-SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds synthetic, evidence-gated differential comparison; SC-11 adds human-readable reports and integrated offline workflow. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
+SC-07 and SC-08 establish typed outcomes and offline synthetic fixtures; SC-09 introduces locally verified synthetic bundles; SC-10 adds synthetic, evidence-gated differential comparison; SC-11 provides offline synthetic reports and a complete reproducible fixture demonstration. Real environment execution, evidence and comparison require separately authorized later milestones. Real environment evidence and signed/hosted provenance are later, separately approved work. No hosted worker, arbitrary user code or VM workloads should be added before separate authorization.
 
 See [contract](EXPERIMENT_CONTRACT.md), [roadmap](V1_ROADMAP.md), [security rules](../SECURITY.md) and [human review/release gates](DEVELOPMENT_WORKFLOW.md).

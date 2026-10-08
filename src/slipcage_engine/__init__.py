@@ -21,6 +21,9 @@ from .comparison import (
     compare_fixture_bundles,
 )
 
+from .reports import FixtureReport, ReportError, render_fixture_report
+from .workflow import DemoError, DemoVerification, create_fixture_demo, verify_fixture_demo
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -30,4 +33,6 @@ __all__ = [
     "BundleError", "BundleVerification", "write_fixture_bundle", "verify_bundle",
     "AssertionDifference", "ChangeKind", "ComparisonReason", "FixtureComparison",
     "compare_fixture_bundles",
+    "FixtureReport", "ReportError", "render_fixture_report",
+    "DemoError", "DemoVerification", "create_fixture_demo", "verify_fixture_demo",
 ]
