@@ -101,6 +101,33 @@ jobs:
           assert result["k3s_boot_verified"] is False
           assert result["vm_launched"] is False
           PYCODE
+          python - <<'PYCODE'
+          import json
+          import subprocess
+
+          path = "examples/vm-plans/k3s-synthetic-design.json"
+          cases = [
+              (["simulate-vm-lifecycle", path, "--scenario", "success", "--json"], 0),
+              (["simulate-vm-lifecycle", path, "--scenario", "timeout", "--json"], 4),
+              (["simulate-vm-lifecycle", path, "--scenario", "cleanup_failure", "--json"], 5),
+              (["simulate-vm-pair", path, "--baseline-scenario", "success",
+                "--candidate-scenario", "success", "--json"], 0),
+              (["simulate-vm-pair", path, "--baseline-scenario", "cleanup_failure",
+                "--candidate-scenario", "success", "--json"], 5),
+          ]
+          for args, expected in cases:
+              process = subprocess.run(["slipcage", *args], capture_output=True,
+                                       text=True, check=False)
+              assert process.returncode == expected, (args, process.stderr)
+              obj = json.loads(process.stdout)
+              assert obj["simulated"] is True, obj
+              assert obj["execution_authorized"] is False
+              assert obj["real_vm_booted"] is False
+              assert obj["host_storage_modified"] is False
+              assert obj["cleanup_verified_on_host"] is False
+              if args[0] == "simulate-vm-pair" and "cleanup_failure" in args:
+                  assert obj["candidate_attempted"] is False
+          PYCODE
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

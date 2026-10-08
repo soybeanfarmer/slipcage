@@ -322,6 +322,32 @@ No QEMU binary is invoked, disk is created, network changed, or worker
 installed. See [SC-12 guest pinning and feasibility](K3S_VM_FEASIBILITY.md)
 for resource assumptions, missing real artifact proofs, and manual gates.
 
+## SC-13a: pure in-memory VM lifecycle simulation
+
+The SC-12 non-executable K3s VM plan can be fed to a deterministic state
+machine that **does not** start any VM. The closed scenarios are success,
+capacity_blocked, start_failure, runtime_failure, timeout, cancelled,
+and cleanup_failure.
+
+~~~bash
+slipcage simulate-vm-lifecycle examples/vm-plans/k3s-synthetic-design.json --scenario success --json
+slipcage simulate-vm-lifecycle examples/vm-plans/k3s-synthetic-design.json --scenario cleanup_failure --json
+slipcage simulate-vm-pair examples/vm-plans/k3s-synthetic-design.json --baseline-scenario start_failure --candidate-scenario success --json
+~~~
+
+The model records deterministic bounded transitions with explicit simulated
+cleanup outcomes. A failed or incompletely cleaned baseline blocks the
+candidate entirely. **No real VM, guest disk, host network, or Kubernetes
+assertion is executed.** Real cleanup verification and artifact provenance
+are always marked false. Timeouts and resource admission are **simulated
+transitions**, not enforced host supervision.
+
+Exit code 0 denotes synthetic completion without a failure; 4 denotes a
+synthetic start/runtime/deadline/cancellation/admission failure; 5 denotes
+synthetic unresolved cleanup requiring review; 2 is invalid input.
+The real run/compare/report commands remain unavailable with exit code 3.
+See [SC-13a design and real-adapter prerequisites](VM_LIFECYCLE_DESIGN.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

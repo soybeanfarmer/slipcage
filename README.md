@@ -187,6 +187,23 @@ isolation and execution authorization have **not** happened. This change
 does not enable a real `run` or VM-provisioning command. See
 [SC-12 pinned VM feasibility](docs/K3S_VM_FEASIBILITY.md).
 
+## VM lifecycle controller simulation — SC-13a
+
+The in-memory VM state machine models bounded admission, startup, timeout,
+cancellation, teardown and strict sequential baseline/candidate gating:
+
+~~~bash
+slipcage simulate-vm-lifecycle examples/vm-plans/k3s-synthetic-design.json --scenario timeout --json
+slipcage simulate-vm-pair examples/vm-plans/k3s-synthetic-design.json --baseline-scenario success --candidate-scenario success --json
+~~~
+
+**These commands do not run QEMU, allocate disks, contact Kubernetes, or
+modify the host.** The output always says real VM boot, execution authorization,
+host changes and real cleanup verification are false. Live SC-13 VM execution
+remains blocked on separately approved real image provenance, VPS measurements,
+provider permission and process/network isolation; see
+[SC-13 VM lifecycle design](docs/VM_LIFECYCLE_DESIGN.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:
