@@ -193,7 +193,7 @@ def write_status(result: dict, destination: Path = STATUS) -> bool:
                 previous = json.loads(destination.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
-    changed = (previous is None or previous.get("issues") != result["issues"])
+    changed = (not isinstance(previous, dict) or previous.get("issues") != result["issues"])
     fd, name = tempfile.mkstemp(prefix=".health-status-", dir=destination.parent)
     temporary = Path(name)
     try:
