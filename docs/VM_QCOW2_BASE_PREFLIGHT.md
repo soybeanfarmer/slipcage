@@ -42,3 +42,7 @@ Tests generate **tiny, synthetic QCOW2 header-shaped byte arrays** in temporary 
 To progress beyond SC-13b7, [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23) still requires independently authenticated upstream artifacts, actual base-image content and complete QEMU QCOW2 consistency validation (using **separately approved** read-only tooling), effective filesystem read-only controls and a checked backing chain with explicit format and path containment. [Issue #25](https://github.com/soybeanfarmer/slipcage/issues/25) still requires a reviewed bounded, **actual** overlay lifecycle (exclusive private creation, quotas, backed by immutable trusted parents, conservative crash cleanup), host-wide lease/fencing, process/cgroup watchdog, guest network isolation, and a separately authorized single benign VM test. CI does not verify VPS behavior.
 
 **No QEMU launch, guest data, overlay, VPS access, production service change, release or deployment is authorized by this PR.**
+
+## SC-13b8 — Suspicious overlay remnants and recovery
+
+The [read-only overlay recovery review](VM_OVERLAY_RECOVERY_REVIEW.md) distinguishes a header/intent preflight from actual recovered VM state. It performs **stat-only** checks on an unexpected overlay-named node, and never opens the disk or deletes evidence; full backing-chain validity and host cleanup remain unverified.

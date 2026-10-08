@@ -72,6 +72,11 @@ from .vm_overlay_preflight import (
     OverlayPreflightError, OverlayIntentPreflight, inspect_overlay_intent,
 )
 
+from .vm_overlay_recovery import (
+    OverlayRecoveryError, RecoveryClassification, OverlayRecoveryReview,
+    review_overlay_recovery,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -104,4 +109,6 @@ __all__ = [
     "stage_local_reservation", "inspect_local_reservation",
     "quarantine_local_reservation",
     "OverlayPreflightError", "OverlayIntentPreflight", "inspect_overlay_intent",
+    "OverlayRecoveryError", "RecoveryClassification", "OverlayRecoveryReview",
+    "review_overlay_recovery",
 ]
