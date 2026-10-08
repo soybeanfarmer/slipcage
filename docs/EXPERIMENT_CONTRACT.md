@@ -1,6 +1,6 @@
 # Proposed experiment and evidence contracts (design only)
 
-**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; no real assertion executor, comparison/report engine, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
+**Status: v0.12 begins with offline, schema-based YAML/JSON validation only.** The package `slipcage_engine` recognizes the example profile as **definition data**, not a reviewed executable test pack. SC-08 adds a bounded, **synthetic fixture-only** interpreter; SC-09 adds **local synthetic-only** evidence bundles and read-only verification. No real assertion executor, comparison/report engine, worker, VM provisioning or Kubernetes adapter has been introduced. See [current CLI limitations](ENGINE_CLI.md).
 
 ## Goals and boundary
 
@@ -85,6 +85,18 @@ with `security_test_executed: false` and `evidence_status: not_collected`.
 The fixture is not a Kubernetes adapter, does not authenticate an API
 observation, and does not provide independent evidence. Actual on-host
 workloads and evidence bundles remain separate approval milestones.
+
+### SC-09 — implemented local synthetic evidence subset
+
+The offline engine can now write and re-verify a **new private directory**
+with `experiment.json`, `results.json`, `provenance.json`,
+`checksums.json`, and `manifest.json`. The manifest is written last.
+The verifier rejects incomplete or unsafe artifacts, checks SHA-256 digests,
+revalidates the experiment, and replays the **packaged synthetic fixture**.
+The result explicitly states `real_security_evidence_verified: false`.
+These files contain no real Kubernetes API observations, guest provenance,
+real run IDs, signed attestation, or project authorization. See
+[SC-09 CLI details](ENGINE_CLI.md).
 
 ## Minimum evidence bundle (proposed)
 

@@ -38,6 +38,9 @@ jobs:
           python -m pip install -e .
           slipcage validate examples/experiments/rbac-pod-create-denied.yaml --json
           slipcage run-fixture examples/experiments/rbac-pod-create-denied.yaml --scenario denied --json
+          fixture_scratch="$(mktemp -d)"
+          slipcage bundle-fixture examples/experiments/rbac-pod-create-denied.yaml --scenario denied --output "$fixture_scratch/bundle" --json
+          slipcage verify-bundle "$fixture_scratch/bundle" --json
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

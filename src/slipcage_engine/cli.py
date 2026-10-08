@@ -11,6 +11,7 @@ from .fixture_executor import (
     FixtureExecutionError, FixtureRunState, FixtureScenario, run_fixture,
 )
 from .results import AssertionOutcome
+from .evidence import BundleError, write_fixture_bundle, verify_bundle
 from .specification import SpecValidationError, load_spec
 
 EXIT_ASSERTION_NOT_PASS = 1
@@ -36,6 +37,16 @@ def build_parser() -> argparse.ArgumentParser:
     fixture.add_argument("--scenario", required=True, choices=[s.value for s in FixtureScenario])
     fixture.add_argument("--json", action="store_true", help="Machine-readable simulation output")
 
+    bundle = commands.add_parser("bundle-fixture", help="Write a NEW private synthetic fixture evidence bundle")
+    bundle.add_argument("file", help="Local validated experiment definition")
+    bundle.add_argument("--scenario", required=True, choices=[s.value for s in FixtureScenario])
+    bundle.add_argument("--output", required=True, help="New directory under a trusted local parent")
+    bundle.add_argument("--json", action="store_true", help="Machine-readable verification summary")
+
+    verify = commands.add_parser("verify-bundle", help="Check existing local synthetic bundle (read-only)")
+    verify.add_argument("directory", help="Existing private evidence directory")
+    verify.add_argument("--json", action="store_true", help="Machine-readable verification summary")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -51,12 +62,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        definition = load_spec(args.file)
-        if args.command == "run-fixture":
-            run = run_fixture(definition, FixtureScenario(args.scenario))
-    except (SpecValidationError, FixtureExecutionError) as exc:
+        if args.command == "verify-bundle":
+            verified = verify_bundle(args.directory)
+        else:
+            definition = load_spec(args.file)
+            if args.command == "run-fixture":
+                run = run_fixture(definition, FixtureScenario(args.scenario))
+            elif args.command == "bundle-fixture":
+                verified = write_fixture_bundle(definition, FixtureScenario(args.scenario), args.output)
+    except (SpecValidationError, FixtureExecutionError, BundleError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command in ("bundle-fixture", "verify-bundle"):
+        if args.json:
+            print(json.dumps(verified.to_dict(), sort_keys=True, separators=(",", ":")))
+        else:
+            print(
+                "SYNTHETIC BUNDLE VERIFIED LOCALLY; real security evidence=none; "
+                f"experiment={verified.experiment_id}; scenario={verified.scenario}; "
+                f"outcomes={','.join(verified.outcomes)}"
+            )
+        return 0
 
     if args.command == "run-fixture":
         if args.json:
