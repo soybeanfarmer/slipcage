@@ -381,6 +381,15 @@
           - /usr/local/lib/slipcage/build-microguest
         creates: /usr/local/lib/slipcage/microguest.cpio.gz
 
+    - name: Stage running Ubuntu kernel for unprivileged microguest boot
+      ansible.builtin.copy:
+        src: "/boot/vmlinuz-{{ ansible_facts['kernel'] }}"
+        dest: "/usr/local/lib/slipcage/vmlinuz-{{ ansible_facts['kernel'] }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Install KVM readiness probe (manual only)
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../scripts/slipcage-kvm-probe.py"
