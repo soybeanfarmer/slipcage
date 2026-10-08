@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import resource
+import time
 import os
 from pathlib import Path
 import stat
@@ -138,6 +140,72 @@ def boot_guest(*, runner=subprocess.run,
     }
 
 
+
+EXPERIMENT_INITRD = Path("/usr/local/lib/slipcage/experiment-v1.cpio.gz")
+EXPERIMENT_MARKERS = (
+    "SLIPCAGE_EXPERIMENT_V1_SUM=500500",
+    "SLIPCAGE_EXPERIMENT_V1_SQUARES=333833500",
+    "SLIPCAGE_EXPERIMENT_V1_SHA256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "SLIPCAGE_EXPERIMENT_V1_OK",
+)
+
+
+def run_experiment(*, runner=subprocess.run,
+                   kernel_path: Path | None = None,
+                   initrd_path: Path | None = None) -> dict:
+    """Boot only the packaged deterministic guest and verify its known answers."""
+    preflight = inspect()
+    kernel = (kernel_path if kernel_path is not None
+              else Path("/usr/local/lib/slipcage") / f"vmlinuz-{os.uname().release}")
+    initrd = initrd_path if initrd_path is not None else EXPERIMENT_INITRD
+    if not (preflight["process_can_open_kvm"] and preflight["qemu_binary_available"]
+            and kernel.is_file() and initrd.is_file()):
+        return {"experiment_passed": False, "reason": "KVM, QEMU, kernel or guest unavailable",
+                "inspection": preflight}
+    args = [
+        QEMU, "-no-user-config", "-nodefaults", "-machine", "q35,accel=kvm",
+        "-cpu", "host", "-m", "384", "-smp", "1",
+        "-display", "none", "-monitor", "none", "-serial", "stdio",
+        "-nic", "none", "-no-reboot",
+        "-kernel", str(kernel), "-initrd", str(initrd),
+        "-append", "console=ttyS0 rdinit=/init panic=1 quiet",
+    ]
+    started = time.monotonic()
+    before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    try:
+        process = runner(args, text=True, capture_output=True, timeout=75, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {
+            "experiment_passed": False, "reason": type(exc).__name__,
+            "wall_seconds": round(time.monotonic() - started, 3),
+            "inspection": preflight, "network": "disabled",
+            "persistent_guest_disk": False,
+        }
+    after = resource.getrusage(resource.RUSAGE_CHILDREN)
+    # Exact expected console lines are required. A mere "OK" string cannot
+    # count as an experimental result; the guest checks both workloads too.
+    console_lines = {line.strip() for line in process.stdout.splitlines()}
+    missing = [marker for marker in EXPERIMENT_MARKERS if marker not in console_lines]
+    passed = process.returncode == 0 and not missing
+    return {
+        "experiment_passed": passed,
+        "exit_code": process.returncode,
+        "known_answers_verified": not missing,
+        "missing_markers": missing,
+        "workload": "fixed_arithmetic_sha256_v1",
+        "wall_seconds": round(time.monotonic() - started, 3),
+        "cpu_user_seconds": round(max(0.0, after.ru_utime - before.ru_utime), 3),
+        "cpu_system_seconds": round(max(0.0, after.ru_stime - before.ru_stime), 3),
+        # Linux ru_maxrss is KiB. One QEMU child per probe process; this
+        # is subprocess peak RSS, not guest RAM, cgroup peak or host total.
+        "qemu_peak_rss_kib": after.ru_maxrss,
+        "inspection": preflight,
+        "network": "disabled",
+        "persistent_guest_disk": False,
+        "console_tail": process.stdout[-1600:],
+        "stderr_tail": process.stderr[-1000:] if not passed else "",
+    }
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
@@ -145,11 +213,15 @@ def main(argv=None) -> int:
                       help="Initialize paused, diskless QEMU with KVM (manual).")
     mode.add_argument("--boot", action="store_true",
                       help="Boot and shut down a locally built, diskless Linux guest (manual).")
+    mode.add_argument("--experiment", action="store_true",
+                      help="Run only the packaged deterministic arithmetic/hash microguest (manual).")
     args = parser.parse_args(argv)
-    result = boot_guest() if args.boot else smoke() if args.smoke else inspect()
+    result = (run_experiment() if args.experiment else
+              boot_guest() if args.boot else smoke() if args.smoke else inspect())
     print(json.dumps(result, sort_keys=True))
-    return 0 if (not args.smoke and not args.boot) or (
+    return 0 if (not args.smoke and not args.boot and not args.experiment) or (
         result.get("guest_booted") is True or result.get("kvm_initialized") is True
+        or result.get("experiment_passed") is True
     ) else 2
 
 
