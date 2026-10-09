@@ -28,6 +28,7 @@ from slipcage_engine.vm_assets import ARTIFACTS, verify_local_vm_assets
 from slipcage_engine.vm_plan import load_vm_plan, validate_vm_plan_bytes
 from slipcage_engine.vm_provenance import API_VERSION as PROVENANCE_API
 from slipcage_engine.vm_key_policy import API_VERSION as KEY_POLICY_API
+from slipcage_engine.vm_artifact_sources import API_VERSION as SOURCES_API, RECEIPT_API as RECEIPT_VERSION
 from slipcage_engine.vm_host_readiness import API_VERSION as SNAPSHOT_API
 from slipcage_engine.vm_reservation import (
     stage_local_reservation, quarantine_local_reservation, QuarantineReason,
@@ -283,6 +284,104 @@ class LaunchPrerequisiteDossierTests(unittest.TestCase):
         )
         self.assertEqual((code, output), (2, ""))
         self.assertTrue(error)
+
+    def artifact_sources(self):
+        from urllib.parse import quote
+        root = self.root / "five-source-receipts"
+        root.mkdir(mode=0o700)
+        root.chmod(0o700)
+        ledger = self.root / "operator-source-ledger.json"
+        tag = self.plan.design["software"]["k3s_version"]
+        prefix = ("https://github.com/k3s-io/k3s/releases/download/"
+                  + quote(tag, safe="") + "/")
+        names = (
+            "os-image.source.json", "kernel.source.json", "k3s.source.json",
+            "cni.source.json", "container-images.source.json",
+        )
+        sources = (
+            "https://example.org/test-os-image", "https://example.org/test-kernel",
+            prefix + "k3s", "https://example.org/test-cni",
+            prefix + "k3s-airgap-images-amd64.tar",
+        )
+        entries = []
+        for idx, (field, _, _) in enumerate(ARTIFACTS):
+            ver = tag if idx in (2, 4) else "ci-test-v1"
+            receipt = {
+                "api_version": RECEIPT_VERSION,
+                "digest_field": field,
+                "artifact_sha256": self.plan.design["artifacts"][field],
+                "source_uri": sources[idx],
+                "version_ref": ver,
+                "observation": "operator_supplied_unverified",
+            }
+            receipt_bytes = canon(receipt)
+            evidence = root / names[idx]
+            evidence.write_bytes(receipt_bytes)
+            evidence.chmod(0o600)
+            entries.append({
+                "digest_field": field,
+                "artifact_sha256": receipt["artifact_sha256"],
+                "source_uri": sources[idx], "version_ref": ver,
+                "receipt_sha256": hashlib.sha256(receipt_bytes).hexdigest(),
+            })
+        ledger.write_bytes(canon({
+            "api_version": SOURCES_API, "kind": "VMArtifactSourceLedger",
+            "plan_digest_sha256": self.plan.digest_sha256,
+            "operator_assertion": "source_reference_recorded_unverified",
+            "artifacts": entries,
+        }))
+        ledger.chmod(0o600)
+        return ledger, root
+
+    def test_source_receipts_integrate_with_dossier_but_always_block(self):
+        ledger, receipts = self.artifact_sources()
+        result = self.review(
+            artifact_source_ledger=ledger, artifact_source_receipts=receipts,
+        ).to_dict()
+        self.assertTrue(result["artifact_source_receipts_checked"])
+        self.assertFalse(result["artifact_source_origin_authenticated"])
+        self.assertFalse(result["execution_authorized"])
+        self.assertEqual(result["artifact_source_ledger_sha256"],
+                         hashlib.sha256(ledger.read_bytes()).hexdigest())
+        args = self.args()
+        args[-1:-1] = [
+            "--artifact-source-ledger", str(ledger),
+            "--artifact-source-receipts", str(receipts),
+        ]
+        status, out, error = self.cli(args)
+        self.assertEqual((status, error), (5, ""))
+        self.assertEqual(json.loads(out)["status"], "blocked_no_execution_permission")
+
+    def test_source_receipts_require_both_inputs(self):
+        ledger, _ = self.artifact_sources()
+        with self.assertRaises(LaunchDossierError):
+            self.review(artifact_source_ledger=ledger)
+        args = self.args()
+        args[-1:-1] = ["--artifact-source-ledger", str(ledger)]
+        status, out, err = self.cli(args)
+        self.assertEqual((status, out), (2, ""))
+        self.assertTrue(err)
+
+    def test_tampered_source_receipt_cannot_produce_dossier(self):
+        ledger, receipts = self.artifact_sources()
+        changed = receipts / "kernel.source.json"
+        changed.write_bytes(b"unverified tamper")
+        with self.assertRaises(Exception):
+            self.review(artifact_source_ledger=ledger, artifact_source_receipts=receipts)
+        args = self.args()
+        args[-1:-1] = [
+            "--artifact-source-ledger", str(ledger),
+            "--artifact-source-receipts", str(receipts),
+        ]
+        status, output, error = self.cli(args)
+        self.assertEqual((status, output), (2, ""))
+        self.assertTrue(error)
+
+    def test_absent_optional_source_receipts_do_not_imply_authentication(self):
+        result = self.review().to_dict()
+        self.assertFalse(result["artifact_source_receipts_checked"])
+        self.assertIsNone(result["artifact_source_ledger_sha256"])
+        self.assertFalse(result["artifact_source_origin_authenticated"])
 
     def test_all_valid_local_checks_still_block_launch(self):
         report = self.review().to_dict()

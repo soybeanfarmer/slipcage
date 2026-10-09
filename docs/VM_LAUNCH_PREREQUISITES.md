@@ -60,3 +60,7 @@ The dossier may now accept an **optional** `--key-policy /private/policy.json`, 
 ## SC-13b14 — Optional exact K3s release checksums against local bytes
 
 The dossier now supports optional paired `--k3s-binary-checksums` and `--k3s-airgap-checksums` arguments. As described in [SC-13b14](VM_K3S_RELEASE_CHECKSUMS.md), they strictly compare supplied K3s release checksum text to matching local amd64 binary and **uncompressed** airgap archive bytes, after rehashing all five assets. The data's **upstream identity is still unverified**; even fully coherent checksum/plan/reservation/journal evidence returns `blocked_no_execution_permission`, exit 5. Both arguments are required together, else exit 2. No real vendor keys, live binaries, actual VPS inventory or guest launch authorization is included.
+
+## SC-13b15 — Optional five-artifact source custody references
+
+The dossier now accepts paired `--artifact-source-ledger PRIVATE_FILE` and `--artifact-source-receipts PRIVATE_DIR` arguments, defined in [SC-13b15](VM_ARTIFACT_SOURCE_LEDGER.md). When supplied they must pass complete byte-hash/plan/receipt/URL-shape checks; any missing or forged slot fails closed (exit 2). Coherent source receipts only yield `artifact_source_receipts_checked:true`, a ledger digest, and `artifact_source_origin_authenticated:false`; the dossier still returns **exit 5, blocked**. There is no vendor-signed actual provenance, image attestation, host readiness or live VM authorization in this change.

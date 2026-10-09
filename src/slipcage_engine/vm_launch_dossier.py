@@ -24,6 +24,7 @@ from .vm_overlay_recovery import RecoveryClassification, review_overlay_recovery
 from .vm_plan import load_vm_plan
 from .vm_provenance import verify_provenance
 from .vm_k3s_checksums import verify_k3s_release_checksums
+from .vm_artifact_sources import review_artifact_source_ledger
 from .vm_key_policy import verify_vm_signing_key_policy
 from .vm_qemu_blueprint import build_qemu_blueprint
 from .vm_reservation import inspect_local_reservation
@@ -67,6 +68,7 @@ class VMLaunchPrerequisiteDossier:
     operator_policy_digest_sha256: str | None = None
     k3s_binary_manifest_sha256: str | None = None
     k3s_airgap_manifest_sha256: str | None = None
+    artifact_source_ledger_sha256: str | None = None
 
     def to_dict(self) -> dict:
         blockers = list(_STATIC_BLOCKERS)
@@ -88,6 +90,9 @@ class VMLaunchPrerequisiteDossier:
             "k3s_binary_checksum_manifest_sha256": self.k3s_binary_manifest_sha256,
             "k3s_airgap_checksum_manifest_sha256": self.k3s_airgap_manifest_sha256,
             "k3s_release_checksum_source_authenticated": False,
+            "artifact_source_receipts_checked": self.artifact_source_ledger_sha256 is not None,
+            "artifact_source_ledger_sha256": self.artifact_source_ledger_sha256,
+            "artifact_source_origin_authenticated": False,
             "policy_identity_authenticated_out_of_band": False,
             "operator_snapshot_sha256": self.snapshot_digest_sha256,
             "reported_capacity_assessment": self.reported_capacity_assessment,
@@ -136,6 +141,8 @@ def review_vm_launch_prerequisites(
     key_policy_file: str | Path | None = None,
     k3s_binary_checksums: str | Path | None = None,
     k3s_airgap_checksums: str | Path | None = None,
+    artifact_source_ledger: str | Path | None = None,
+    artifact_source_receipts: str | Path | None = None,
 ) -> VMLaunchPrerequisiteDossier:
     """Repeat file-backed checks, cross-bind inputs, and ALWAYS block execution.
 
@@ -147,6 +154,13 @@ def review_vm_launch_prerequisites(
         raise LaunchDossierError("Reservation and offline journal must use separate private roots")
     plan = load_vm_plan(plan_file)
     assets = verify_local_vm_assets(plan, asset_dir)
+    if (artifact_source_ledger is None) != (artifact_source_receipts is None):
+        raise LaunchDossierError("Artifact source ledger and receipts must be supplied together")
+    source_review = (
+        review_artifact_source_ledger(
+            plan, asset_dir, artifact_source_ledger, artifact_source_receipts,
+        ) if artifact_source_ledger is not None else None
+    )
     if (k3s_binary_checksums is None) != (k3s_airgap_checksums is None):
         raise LaunchDossierError("K3s binary and airgap checksum files must be supplied together")
     k3s_release_check = (
@@ -191,6 +205,8 @@ def review_vm_launch_prerequisites(
             or base.base_sha256 != blueprint.backing_image_digest_sha256
             or provenance.plan_digest_sha256 != plan.digest_sha256
             or host.plan_digest_sha256 != plan.digest_sha256
+            or (source_review is not None
+                and source_review.plan_digest_sha256 != plan.digest_sha256)
             or (k3s_release_check is not None and (
                 k3s_release_check.plan_digest_sha256 != plan.digest_sha256
                 or k3s_release_check.k3s_binary_sha256 != plan.design["artifacts"]["k3s_binary_sha256"]
@@ -214,4 +230,5 @@ def review_vm_launch_prerequisites(
         policy_result.policy_digest_sha256 if policy_result is not None else None,
         k3s_release_check.binary_manifest_sha256 if k3s_release_check is not None else None,
         k3s_release_check.archive_manifest_sha256 if k3s_release_check is not None else None,
+        source_review.ledger_sha256 if source_review is not None else None,
     )

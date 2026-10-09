@@ -109,6 +109,10 @@ from .vm_k3s_checksums import (
     verify_k3s_release_checksums,
 )
 
+from .vm_artifact_sources import (
+    ArtifactSourceError, ArtifactSourceReview, review_artifact_source_ledger,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -157,4 +161,5 @@ __all__ = [
     "VMKeyPolicyError", "SigningKeyPolicyCheck", "verify_vm_signing_key_policy",
     "K3sReleaseChecksumError", "K3sUpstreamChecksumCheck",
     "verify_k3s_release_checksums",
+    "ArtifactSourceError", "ArtifactSourceReview", "review_artifact_source_ledger",
 ]
