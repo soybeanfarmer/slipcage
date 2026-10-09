@@ -118,6 +118,11 @@ from .vm_qcow2_metadata import (
     inspect_bounded_qcow2_metadata,
 )
 
+from .vm_qcow2_external_evidence import (
+    Qcow2ExternalEvidenceError, Qcow2ExternalEvidenceReview,
+    review_qcow2_external_evidence,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -169,4 +174,6 @@ __all__ = [
     "ArtifactSourceError", "ArtifactSourceReview", "review_artifact_source_ledger",
     "Qcow2MetadataError", "BoundedQcow2MetadataReview",
     "inspect_bounded_qcow2_metadata",
+    "Qcow2ExternalEvidenceError", "Qcow2ExternalEvidenceReview",
+    "review_qcow2_external_evidence",
 ]

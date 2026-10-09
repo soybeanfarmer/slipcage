@@ -383,6 +383,96 @@ class LaunchPrerequisiteDossierTests(unittest.TestCase):
         self.assertIsNone(result["artifact_source_ledger_sha256"])
         self.assertFalse(result["artifact_source_origin_authenticated"])
 
+    def qcow2_external_fixture(self):
+        root = self.root / "operator-qemu-json"
+        root.mkdir(mode=0o700)
+        root.chmod(0o700)
+        size = (self.assets / "os-image.qcow2").stat().st_size
+        data_info = {
+            "filename": "os-image.qcow2", "format": "qcow2",
+            "virtual-size": self.plan.design["guest"]["disk_gib"] * 1024**3,
+            "actual-size": size, "cluster-size": CLUSTER,
+            "encrypted": False, "dirty-flag": False,
+            "compressed": False, "snapshots": [],
+        }
+        data_check = {
+            "filename": "os-image.qcow2", "format": "qcow2",
+            "check-errors": 0, "corruptions": 0, "leaks": 0,
+        }
+        info_bytes, check_bytes = canon(data_info), canon(data_check)
+        capture = {
+            "api_version": "slipcage.dev/qcow2-external-evidence/v1alpha1",
+            "capture_kind": "declared_qemu_img_read_only_info_check",
+            "capture_origin": "operator_supplied_unverified",
+            "plan_digest_sha256": self.plan.digest_sha256,
+            "base_sha256": self.plan.design["artifacts"]["os_image_sha256"],
+            "base_size_bytes": size,
+            "qemu_img_version": self.plan.design["runtime"]["qemu_version"],
+            "qemu_img_binary_sha256": hashlib.sha256(b"FAKE qemu-img in CI").hexdigest(),
+            "info_command": [
+                "qemu-img", "info", "--output=json", "-f", "qcow2", "os-image.qcow2",
+            ],
+            "check_command": [
+                "qemu-img", "check", "--output=json", "-f", "qcow2", "os-image.qcow2",
+            ],
+            "info_exit_code": 0, "check_exit_code": 0,
+            "info_output_sha256": hashlib.sha256(info_bytes).hexdigest(),
+            "check_output_sha256": hashlib.sha256(check_bytes).hexdigest(),
+        }
+        for name, data in (
+            ("capture.json", canon(capture)),
+            ("info.json", info_bytes),
+            ("check.json", check_bytes),
+        ):
+            f = root / name
+            f.write_bytes(data)
+            f.chmod(0o600)
+        return root
+
+    def test_optional_fake_qemu_reports_keep_dossier_always_blocked(self):
+        evidence = self.qcow2_external_fixture()
+        report = self.review(qcow2_evidence_dir=evidence).to_dict()
+        self.assertTrue(report["qcow2_external_reports_locally_checked"])
+        self.assertFalse(report["qcow2_external_check_execution_attested"])
+        self.assertFalse(report["full_guest_image_structure_verified"])
+        self.assertFalse(report["execution_authorized"])
+        self.assertEqual(report["status"], "blocked_no_execution_permission")
+        args = self.args()
+        args[-1:-1] = ["--qcow2-evidence-dir", str(evidence)]
+        status, out, err = self.cli(args)
+        self.assertEqual((status, err), (5, ""))
+        self.assertFalse(json.loads(out)["execution_authorized"])
+
+    def test_optional_qemu_check_repair_claim_fails_no_dossier(self):
+        evidence = self.qcow2_external_fixture()
+        f = evidence / "check.json"
+        report = json.loads(f.read_bytes())
+        report["corruptions-fixed"] = 2
+        raw = canon(report)
+        f.write_bytes(raw)
+        with self.assertRaises(Exception):
+            self.review(qcow2_evidence_dir=evidence)
+        args = self.args()
+        args[-1:-1] = ["--qcow2-evidence-dir", str(evidence)]
+        status, out, error = self.cli(args)
+        self.assertEqual((status, out), (2, ""))
+        self.assertTrue(error)
+
+    def test_optional_fake_qemu_report_wrong_plan_fails_closed(self):
+        evidence = self.qcow2_external_fixture()
+        manifest = evidence / "capture.json"
+        data = json.loads(manifest.read_bytes())
+        data["plan_digest_sha256"] = "f" * 64
+        manifest.write_bytes(canon(data))
+        with self.assertRaises(Exception):
+            self.review(qcow2_evidence_dir=evidence)
+
+    def test_absent_optional_qemu_report_never_implies_verification(self):
+        report = self.review().to_dict()
+        self.assertFalse(report["qcow2_external_reports_locally_checked"])
+        self.assertIsNone(report["qcow2_external_report_capture_sha256"])
+        self.assertFalse(report["qcow2_external_check_execution_attested"])
+
     def test_all_valid_local_checks_still_block_launch(self):
         report = self.review().to_dict()
         self.assertEqual(report["api_version"], API_VERSION)

@@ -51,3 +51,7 @@ The parser relies on trusted operator-controlled ancestors and absence of malici
 Issue [#23](https://github.com/soybeanfarmer/slipcage/issues/23) remains open for genuine publisher-vetted OS/kernel/K3s/CNI/image bytes and signatures, full real QCOW2 backing/metadata verification by approved tools, actual owner-approved provider/VPS/KVM and quota measurements. Issue [#25](https://github.com/soybeanfarmer/slipcage/issues/25) still blocks any real host-global lease, disk overlay, runtime supervision, guest isolation, boot and crash-cleanup validation until separately approved.
 
 **No release, VPS inspection or mutation, SSH, download, archive extraction, QEMU/qemu-img/KVM call, disk creation, or guest boot is performed by SC-13b16.**
+
+## SC-13b17 — External QEMU check reports remain untrusted operator claims
+
+The separate [SC-13b17 JSON report reviewer](VM_QCOW2_EXTERNAL_EVIDENCE.md) may reconcile an operator-supplied `qemu-img info`/`check` transcript to a pinned local base even when the image is larger than this parser's 64-MiB subset. It does **not** run QEMU tools, attest that a check occurred or establish full QCOW2 validity. Both commands remain non-executing and do not permit guest launch.

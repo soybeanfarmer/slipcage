@@ -292,6 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     launch_review.add_argument("--k3s-airgap-checksums", help="Optional k3s-airgap-images-amd64.sha256sum; requires binary checksums")
     launch_review.add_argument("--artifact-source-ledger", help="Optional operator-supplied canonical five-asset source ledger")
     launch_review.add_argument("--artifact-source-receipts", help="Optional private 0700 receipt directory (paired)")
+    launch_review.add_argument("--qcow2-evidence-dir", help="Optional private operator-supplied qemu-img info/check JSON, NOT authenticated")
     launch_review.add_argument("--json", action="store_true")
 
     qmetadata = commands.add_parser(
@@ -377,6 +378,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 k3s_airgap_checksums=args.k3s_airgap_checksums,
                 artifact_source_ledger=args.artifact_source_ledger,
                 artifact_source_receipts=args.artifact_source_receipts,
+                qcow2_evidence_dir=args.qcow2_evidence_dir,
             )
         elif args.command == "simulate-vm-process-supervision":
             vm_definition = load_vm_plan(args.file)
