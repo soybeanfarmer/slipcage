@@ -335,6 +335,23 @@ QCOW2 allocation/refcount graph, authenticate upstream publishers, create an
 overlay, traverse a backing chain or prove image immutability. No QEMU or
 qemu-img commands run. See [SC-13b7 conservative base preflight](docs/VM_QCOW2_BASE_PREFLIGHT.md).
 
+## SC-13b8 — Read-only overlay remnant and recovery assessment
+
+`slipcage review-vm-overlay` examines the fixed private staging slot **without
+opening or deleting any overlay**. It separates intact, incomplete, corrupt,
+quarantined and unknown states and conservatively flags any unexpected
+`overlay.qcow2` filesystem node for manual preservation:
+
+~~~bash
+slipcage review-vm-overlay /private/operator-controlled-reservation-root --json
+~~~
+
+All cases refuse automatic cleanup, overlay creation and VM execution. A valid
+staging record with no observed overlay **does not** establish actual process
+cleanup or permission to run a guest. CI only tests tiny disposable fixtures;
+no QEMU/guest workloads or VPS paths are accessed. See
+[SC-13b8 recovery triage limitations](docs/VM_OVERLAY_RECOVERY_REVIEW.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:

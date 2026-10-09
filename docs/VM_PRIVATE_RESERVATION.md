@@ -56,3 +56,7 @@ This staging work does **not** complete [trusted image/host gate #23](https://gi
 ## SC-13b7 — Header-only QCOW2 base inspection
 
 The new [QCOW2 base/overlay-intent preflight](VM_QCOW2_BASE_PREFLIGHT.md) can read this permanent non-quarantined reservation, then check the private base image's entire declared hash and a narrow no-backing QCOW2 v3 header shape. It makes **no** new overlay and cannot clear quarantine or certify a real backing chain.
+
+## SC-13b8 — Recovery triage, not cleanup
+
+The [SC-13b8 recovery reviewer](VM_OVERLAY_RECOVERY_REVIEW.md) now detects incomplete/invalid single-use slots, quarantine markers and unexpected overlay-named filesystem nodes. It does not remove or repair any record, inspect processes, or open a QCOW2 disk. Even a nominal staged record never grants operator clearance or guest launch permission.

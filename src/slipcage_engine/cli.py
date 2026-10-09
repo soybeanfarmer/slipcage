@@ -27,6 +27,7 @@ from .vm_reservation import (
     inspect_local_reservation, quarantine_local_reservation,
 )
 from .vm_overlay_preflight import OverlayPreflightError, inspect_overlay_intent
+from .vm_overlay_recovery import OverlayRecoveryError, RecoveryClassification, review_overlay_recovery
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -204,6 +205,13 @@ def build_parser() -> argparse.ArgumentParser:
     overlay.add_argument("--reservation-root", required=True, help="Existing completed SC-13b6 private reservation")
     overlay.add_argument("--json", action="store_true")
 
+    recovery = commands.add_parser(
+        "review-vm-overlay",
+        help="READ-ONLY private slot recovery review; no overlay read/delete, guest, or cleanup",
+    )
+    recovery.add_argument("root", help="Existing trusted private local reservation root")
+    recovery.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -219,7 +227,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "inspect-vm-backing":
+        if args.command == "review-vm-overlay":
+            overlay_review = review_overlay_recovery(args.root)
+        elif args.command == "inspect-vm-backing":
             vm_definition = load_vm_plan(args.file)
             asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
             vm_reservation = inspect_local_reservation(args.reservation_root)
@@ -306,9 +316,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "review-vm-overlay":
+        if args.json:
+            print(overlay_review.canonical_json().decode("ascii"))
+        else:
+            print("READ-ONLY OVERLAY RECOVERY REVIEW; "
+                  f"classification={overlay_review.classification.value}; "
+                  "automatic_cleanup_permitted=false; execution_authorized=false")
+        return (0 if overlay_review.classification is RecoveryClassification.STAGED_ONLY
+                else 5)
 
     if args.command == "inspect-vm-backing":
         if args.json:

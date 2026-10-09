@@ -208,6 +208,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vm_reservation.py' -q
           # SC-13b7 tiny hand-built QCOW2 header shapes in runner scratch, NEVER qemu-img/QEMU.
           python -m unittest discover -s tests -p 'test_vm_overlay_preflight.py' -q
+          # SC-13b8 read-only recovery triage using fixture-only temp roots; no QEMU/overlay creation.
+          python -m unittest discover -s tests -p 'test_vm_overlay_recovery.py' -q
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh
