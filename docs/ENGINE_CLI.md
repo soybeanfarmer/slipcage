@@ -624,6 +624,21 @@ execution permission. Existing `inspect-vm-backing` remains header-only;
 the launch dossier remains permanently blocked. No QEMU or `qemu-img`
 is invoked. See [SC-13b16 narrow QCOW2 metadata checks](VM_QCOW2_METADATA_SUBSET.md).
 
+## SC-13b17 — Offline review of operator-supplied QEMU image-check reports
+
+`slipcage review-vm-qcow2-external-evidence` now reads **existing**
+private `capture.json`, `info.json` and `check.json` files and
+compares their reported image name, read-only nonrepair argv, tool version,
+exit codes, SHA-256, corruption/leak/repair counters and QEMU image metadata
+to the exact local SC-12 pinned QCOW2 base bytes.
+
+The evidence files are **operator-supplied and may be forged**: the
+command **never runs `qemu-img`**, authenticates its binary, proves it ran,
+or verifies complete QCOW2 integrity. Coherent input remains **exit 5,
+blocked**. The SC-13b12 `review-vm-launch-gates` dossier optionally
+accepts `--qcow2-evidence-dir` without changing its execution block.
+See [SC-13b17 QEMU evidence review](VM_QCOW2_EXTERNAL_EVIDENCE.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

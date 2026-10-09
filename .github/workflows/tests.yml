@@ -217,6 +217,8 @@ jobs:
           # SC-13b16 read-only bounded QCOW2 metadata graphs in tiny nonbootable fixtures.
           # Never runs qemu-img or boots QEMU; no guest images or VPS access.
           python -m unittest discover -s tests -p 'test_vm_qcow2_metadata.py' -q
+          # SC-13b17 fake operator-supplied qemu-img JSON, no QEMU/qemu-img execution.
+          python -m unittest discover -s tests -p 'test_vm_qcow2_external_evidence.py' -q
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

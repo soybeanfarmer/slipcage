@@ -480,6 +480,21 @@ execution permission. Existing `inspect-vm-backing` remains header-only;
 the launch dossier remains permanently blocked. No QEMU or `qemu-img`
 is invoked. See [SC-13b16 narrow QCOW2 metadata checks](docs/VM_QCOW2_METADATA_SUBSET.md).
 
+## SC-13b17 — Offline review of operator-supplied QEMU image-check reports
+
+`slipcage review-vm-qcow2-external-evidence` now reads **existing**
+private `capture.json`, `info.json` and `check.json` files and
+compares their reported image name, read-only nonrepair argv, tool version,
+exit codes, SHA-256, corruption/leak/repair counters and QEMU image metadata
+to the exact local SC-12 pinned QCOW2 base bytes.
+
+The evidence files are **operator-supplied and may be forged**: the
+command **never runs `qemu-img`**, authenticates its binary, proves it ran,
+or verifies complete QCOW2 integrity. Coherent input remains **exit 5,
+blocked**. The SC-13b12 `review-vm-launch-gates` dossier optionally
+accepts `--qcow2-evidence-dir` without changing its execution block.
+See [SC-13b17 QEMU evidence review](docs/VM_QCOW2_EXTERNAL_EVIDENCE.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:

@@ -26,6 +26,7 @@ from .vm_provenance import verify_provenance
 from .vm_k3s_checksums import verify_k3s_release_checksums
 from .vm_artifact_sources import review_artifact_source_ledger
 from .vm_key_policy import verify_vm_signing_key_policy
+from .vm_qcow2_external_evidence import review_qcow2_external_evidence
 from .vm_qemu_blueprint import build_qemu_blueprint
 from .vm_reservation import inspect_local_reservation
 
@@ -69,6 +70,7 @@ class VMLaunchPrerequisiteDossier:
     k3s_binary_manifest_sha256: str | None = None
     k3s_airgap_manifest_sha256: str | None = None
     artifact_source_ledger_sha256: str | None = None
+    reported_qcow2_evidence_sha256: str | None = None
 
     def to_dict(self) -> dict:
         blockers = list(_STATIC_BLOCKERS)
@@ -93,6 +95,9 @@ class VMLaunchPrerequisiteDossier:
             "artifact_source_receipts_checked": self.artifact_source_ledger_sha256 is not None,
             "artifact_source_ledger_sha256": self.artifact_source_ledger_sha256,
             "artifact_source_origin_authenticated": False,
+            "qcow2_external_reports_locally_checked": self.reported_qcow2_evidence_sha256 is not None,
+            "qcow2_external_report_capture_sha256": self.reported_qcow2_evidence_sha256,
+            "qcow2_external_check_execution_attested": False,
             "policy_identity_authenticated_out_of_band": False,
             "operator_snapshot_sha256": self.snapshot_digest_sha256,
             "reported_capacity_assessment": self.reported_capacity_assessment,
@@ -143,6 +148,7 @@ def review_vm_launch_prerequisites(
     k3s_airgap_checksums: str | Path | None = None,
     artifact_source_ledger: str | Path | None = None,
     artifact_source_receipts: str | Path | None = None,
+    qcow2_evidence_dir: str | Path | None = None,
 ) -> VMLaunchPrerequisiteDossier:
     """Repeat file-backed checks, cross-bind inputs, and ALWAYS block execution.
 
@@ -154,6 +160,10 @@ def review_vm_launch_prerequisites(
         raise LaunchDossierError("Reservation and offline journal must use separate private roots")
     plan = load_vm_plan(plan_file)
     assets = verify_local_vm_assets(plan, asset_dir)
+    qcow2_external = (
+        review_qcow2_external_evidence(plan, asset_dir, qcow2_evidence_dir)
+        if qcow2_evidence_dir is not None else None
+    )
     if (artifact_source_ledger is None) != (artifact_source_receipts is None):
         raise LaunchDossierError("Artifact source ledger and receipts must be supplied together")
     source_review = (
@@ -203,6 +213,11 @@ def review_vm_launch_prerequisites(
             or base.reservation_digest_sha256 != reservation.record_digest_sha256
             or base.plan_digest_sha256 != plan.digest_sha256
             or base.base_sha256 != blueprint.backing_image_digest_sha256
+            or (qcow2_external is not None and (
+                qcow2_external.plan_digest_sha256 != plan.digest_sha256
+                or qcow2_external.base_sha256 != base.base_sha256
+                or qcow2_external.base_size_bytes != base.base_size_bytes
+            ))
             or provenance.plan_digest_sha256 != plan.digest_sha256
             or host.plan_digest_sha256 != plan.digest_sha256
             or (source_review is not None
@@ -231,4 +246,5 @@ def review_vm_launch_prerequisites(
         k3s_release_check.binary_manifest_sha256 if k3s_release_check is not None else None,
         k3s_release_check.archive_manifest_sha256 if k3s_release_check is not None else None,
         source_review.ledger_sha256 if source_review is not None else None,
+        qcow2_external.capture_sha256 if qcow2_external is not None else None,
     )

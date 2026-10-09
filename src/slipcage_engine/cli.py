@@ -43,6 +43,9 @@ from .vm_key_policy import VMKeyPolicyError, verify_vm_signing_key_policy
 from .vm_k3s_checksums import K3sReleaseChecksumError, verify_k3s_release_checksums
 from .vm_artifact_sources import ArtifactSourceError, review_artifact_source_ledger
 from .vm_qcow2_metadata import Qcow2MetadataError, inspect_bounded_qcow2_metadata
+from .vm_qcow2_external_evidence import (
+    Qcow2ExternalEvidenceError, review_qcow2_external_evidence,
+)
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -292,7 +295,17 @@ def build_parser() -> argparse.ArgumentParser:
     launch_review.add_argument("--k3s-airgap-checksums", help="Optional k3s-airgap-images-amd64.sha256sum; requires binary checksums")
     launch_review.add_argument("--artifact-source-ledger", help="Optional operator-supplied canonical five-asset source ledger")
     launch_review.add_argument("--artifact-source-receipts", help="Optional private 0700 receipt directory (paired)")
+    launch_review.add_argument("--qcow2-evidence-dir", help="Optional private operator-supplied qemu-img info/check JSON, NOT authenticated")
     launch_review.add_argument("--json", action="store_true")
+
+    ext_qcow = commands.add_parser(
+        "review-vm-qcow2-external-evidence",
+        help="Read-only reconcile UNTRUSTED qemu-img info/check JSON; never executes QEMU",
+    )
+    ext_qcow.add_argument("file", help="Strict nonsynthetic SC-12 VM plan")
+    ext_qcow.add_argument("--assets-dir", required=True, help="Existing private five-file asset root")
+    ext_qcow.add_argument("--evidence-dir", required=True, help="Existing private operator report directory")
+    ext_qcow.add_argument("--json", action="store_true")
 
     qmetadata = commands.add_parser(
         "inspect-vm-qcow2-metadata",
@@ -348,7 +361,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "inspect-vm-qcow2-metadata":
+        if args.command == "review-vm-qcow2-external-evidence":
+            external_qcow_review = review_qcow2_external_evidence(
+                load_vm_plan(args.file), args.assets_dir, args.evidence_dir,
+            )
+        elif args.command == "inspect-vm-qcow2-metadata":
             bounded_metadata = inspect_bounded_qcow2_metadata(
                 load_vm_plan(args.file), args.assets_dir,
             )
@@ -377,6 +394,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 k3s_airgap_checksums=args.k3s_airgap_checksums,
                 artifact_source_ledger=args.artifact_source_ledger,
                 artifact_source_receipts=args.artifact_source_receipts,
+                qcow2_evidence_dir=args.qcow2_evidence_dir,
             )
         elif args.command == "simulate-vm-process-supervision":
             vm_definition = load_vm_plan(args.file)
@@ -495,9 +513,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError, ArtifactSourceError, Qcow2MetadataError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError, ArtifactSourceError, Qcow2MetadataError, Qcow2ExternalEvidenceError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "review-vm-qcow2-external-evidence":
+        if args.json:
+            print(external_qcow_review.canonical_json().decode("ascii"))
+        else:
+            print("OPERATOR QCOW2 REPORTS LOCALLY COHERENT ONLY; "
+                  "qemu_img_executed=false; external_execution_attested=false; "
+                  "execution_authorized=false")
+        return 5  # Untrusted reports NEVER grant execution.
 
     if args.command == "inspect-vm-qcow2-metadata":
         if args.json:

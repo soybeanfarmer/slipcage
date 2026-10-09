@@ -64,3 +64,7 @@ The dossier now supports optional paired `--k3s-binary-checksums` and `--k3s-air
 ## SC-13b15 — Optional five-artifact source custody references
 
 The dossier now accepts paired `--artifact-source-ledger PRIVATE_FILE` and `--artifact-source-receipts PRIVATE_DIR` arguments, defined in [SC-13b15](VM_ARTIFACT_SOURCE_LEDGER.md). When supplied they must pass complete byte-hash/plan/receipt/URL-shape checks; any missing or forged slot fails closed (exit 2). Coherent source receipts only yield `artifact_source_receipts_checked:true`, a ledger digest, and `artifact_source_origin_authenticated:false`; the dossier still returns **exit 5, blocked**. There is no vendor-signed actual provenance, image attestation, host readiness or live VM authorization in this change.
+
+## SC-13b17 — Optional untrusted external qemu-img evidence
+
+The dossier now accepts `--qcow2-evidence-dir PRIVATE_DIR` for a strictly validated, nonrepair, operator-supplied `qemu-img info` and `check` transcript as defined in [SC-13b17](VM_QCOW2_EXTERNAL_EVIDENCE.md). The option adds only an evidence SHA-256 and `qcow2_external_reports_locally_checked:true`. Since QEMU is **not executed or authenticated**, `qcow2_external_check_execution_attested:false` and `full_guest_image_structure_verified:false` remain. A coherent dossier always returns **exit 5, blocked**, and report discrepancies fail exit 2.
