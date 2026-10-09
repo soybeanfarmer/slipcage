@@ -82,6 +82,12 @@ from .vm_local_review_lock import (
     scoped_local_review_lock, review_overlay_with_local_lock,
 )
 
+from .vm_offline_fencing import (
+    FencingJournalError, FencingJournalBusy, OfflineResolution,
+    FencingSnapshot, inspect_offline_fencing, issue_offline_generation,
+    resolve_offline_generation,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -118,4 +124,7 @@ __all__ = [
     "review_overlay_recovery",
     "LocalReviewLockError", "LocalReviewLockBusy", "LockedRecoveryReview",
     "scoped_local_review_lock", "review_overlay_with_local_lock",
+    "FencingJournalError", "FencingJournalBusy", "OfflineResolution",
+    "FencingSnapshot", "inspect_offline_fencing", "issue_offline_generation",
+    "resolve_offline_generation",
 ]

@@ -41,3 +41,7 @@ Do **not** treat exit 0, a lockfile on disk, or a lock released by process death
 [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23) still requires independently authenticated image/QEMU/K3s artifacts, full QCOW2 content/chain verification, current owner-approved host resource/KVM and provider-permission evidence. [Issue #25](https://github.com/soybeanfarmer/slipcage/issues/25) still requires a **genuinely host-global** exclusive guest lease with *durable attempt ID + monotonic fencing generation*, private newly created overlay linked to an immutable trusted parent, OS-enforced quotas/watchdog/process-group kill and reap, conservative orphan reconciliation and guest network isolation. Those need separate source review and owner authorization for **one** bounded live benign test.
 
 **Never run this lock-creating CLI on existing VPS or production data directories without independent explicit operator approval.** CI uses ephemeral disposable directories only. Green CI verifies the Linux kernel flock API in GitHub's runner environment, **not** the target VPS or QEMU.
+
+## SC-13b10 — Separate local append-only intent ledger
+
+The [SC-13b10 offline fencing journal](VM_OFFLINE_FENCING_JOURNAL.md) now uses a **separate** operator-controlled private directory and advisory lock to serialize hash-linked, monotonic **non-executing** attempt records. It cannot be mistaken for a real guest-process lease or proof of live cleanup; the SC-13b9 recovery inspection lock stays scoped to its original root and is unchanged.

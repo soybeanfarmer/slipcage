@@ -370,6 +370,21 @@ cross-process flock contention using ephemeral scratch roots only; no
 production VPS files, overlays or VMs are touched. See
 [SC-13b9 scoped local review lock](docs/VM_LOCAL_REVIEW_LOCK.md).
 
+## SC-13b10 — Durable offline identity and monotonic fencing generations
+
+The development-only `stage-offline-vm-generation`,
+`inspect-offline-vm-generations` and `resolve-offline-vm-generation`
+commands persist **hash-linked, numbered offline intent records** under a
+separate pre-existing private local root. They serialize cooperating writes
+with a scoped Linux advisory lock, reject stale expected generations,
+preserve interrupted records, and block unresolved/quarantined identities.
+
+**No host-wide guest lease, process lifetime lock, VM, disk or cleanup is
+implemented.** Even an `offline_intent_abandoned_not_vm_cleanup` resolution
+is **not proof of guest cleanup or authorization for live execution**.
+Only tiny files in intentionally selected development roots are created.
+See [SC-13b10 offline fencing journal](docs/VM_OFFLINE_FENCING_JOURNAL.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:
