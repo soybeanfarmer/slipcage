@@ -38,6 +38,7 @@ from .vm_offline_fencing import (
 from .vm_process_supervisor import (
     ProcessSafetyError, ProcessScenario, ProcessPhase, simulate_fake_supervision,
 )
+from .vm_launch_dossier import LaunchDossierError, review_vm_launch_prerequisites
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -267,6 +268,20 @@ def build_parser() -> argparse.ArgumentParser:
     process_fake.add_argument("--scenario", required=True, choices=[s.value for s in ProcessScenario])
     process_fake.add_argument("--json", action="store_true")
 
+    launch_review = commands.add_parser(
+        "review-vm-launch-gates",
+        help="Read-only cross-check ALL local VM prereqs; ALWAYS blocks launch",
+    )
+    launch_review.add_argument("file", help="Validated nonsynthetic SC-12 VM plan")
+    launch_review.add_argument("--assets-dir", required=True, help="Existing private local asset directory")
+    launch_review.add_argument("--statement", required=True, help="Canonical locally signed provenance statement")
+    launch_review.add_argument("--signature", required=True, help="Detached Ed25519 signature")
+    launch_review.add_argument("--public-key", required=True, help="Supplied raw key, NOT authenticated by CLI")
+    launch_review.add_argument("--host-snapshot", required=True, help="Unverified operator-supplied host snapshot")
+    launch_review.add_argument("--reservation-root", required=True, help="Completed nonquarantined local intent")
+    launch_review.add_argument("--journal-root", required=True, help="Separate outstanding offline intent journal")
+    launch_review.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -282,7 +297,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "simulate-vm-process-supervision":
+        if args.command == "review-vm-launch-gates":
+            vm_launch_dossier = review_vm_launch_prerequisites(
+                args.file, args.assets_dir, args.statement, args.signature,
+                args.public_key, args.host_snapshot,
+                args.reservation_root, args.journal_root,
+            )
+        elif args.command == "simulate-vm-process-supervision":
             vm_definition = load_vm_plan(args.file)
             asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
             fencing_snapshot = inspect_offline_fencing(args.journal_root)
@@ -399,9 +420,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "review-vm-launch-gates":
+        if args.json:
+            print(vm_launch_dossier.canonical_json().decode("ascii"))
+        else:
+            print("OFFLINE PREREQUISITES CROSS-CHECKED; ALWAYS BLOCKED; "
+                  f"reported_capacity={vm_launch_dossier.reported_capacity_assessment}; "
+                  "execution_authorized=false; vm_launched=false")
+        return 5  # Even fully coherent local inputs NEVER authorize VM execution.
 
     if args.command == "simulate-vm-process-supervision":
         if args.json:

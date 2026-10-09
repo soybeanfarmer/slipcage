@@ -204,6 +204,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vm_offline_fencing.py' -q
           # SC-13b11 fake process identities and signal intents only; never real signals/QEMU.
           python -m unittest discover -s tests -p 'test_vm_process_supervisor.py' -q
+          # SC-13b12 eight-input offline prerequisites, intentionally ALWAYS blocked; no guest.
+          python -m unittest discover -s tests -p 'test_vm_launch_dossier.py' -q
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax
