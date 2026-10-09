@@ -49,3 +49,7 @@ CI execution is not VPS host observation, live KVM verification, software-publis
 The next actual SC-13 implementation still needs owner-verified upstream release signatures/image contents, host capacity and provider policy (Issue [#23](https://github.com/soybeanfarmer/slipcage/issues/23)), plus a separately reviewed, OS-backed host-global lease, exclusively created QCOW2 overlay with immutable trusted base, filesystem/cgroup budgets, watchdog/process-group kill and reap, guest network isolation, crash reconciliation and an owner-authorized bounded live VM test (Issue [#25](https://github.com/soybeanfarmer/slipcage/issues/25)).
 
 **Do not run this command on production VPS paths without separate operator approval.** Do not manually remove a directory because a CLI reports `verified_staging_record_no_overlay`. Green GitHub CI never establishes real host cleanup or authorizes a QEMU/K3s launch.
+
+## SC-13b9 — Optional Linux flock for cooperating reviewers
+
+A separate [scoped local review-lock command](VM_LOCAL_REVIEW_LOCK.md) now takes a kernel advisory lock around this read-only scan (with an empty persistent local lockfile). This does **not** make recovery automatic, prove host cleanup, fence VM processes or establish a host-global guest lock. All preservation classifications and operator review gates are unchanged.

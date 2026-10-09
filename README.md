@@ -352,6 +352,24 @@ cleanup or permission to run a guest. CI only tests tiny disposable fixtures;
 no QEMU/guest workloads or VPS paths are accessed. See
 [SC-13b8 recovery triage limitations](docs/VM_OVERLAY_RECOVERY_REVIEW.md).
 
+## SC-13b9 — Kernel advisory lock around local recovery inspection
+
+The optional `slipcage review-vm-overlay-locked` command acquires a real,
+**same-root Linux advisory flock** for the duration of SC-13b8's read-only
+recovery scan. It may create one **empty 0600 persistent lockfile** in the
+operator-chosen preexisting private scratch root:
+
+~~~bash
+slipcage review-vm-overlay-locked /private/development-reservation-root --json
+~~~
+
+This is **not** a guest-process or host-global lease: the lock is released
+before the command returns, and process death cannot prove guest cleanup.
+A safe-looking observation cannot authorize QEMU or deletion. CI checks real
+cross-process flock contention using ephemeral scratch roots only; no
+production VPS files, overlays or VMs are touched. See
+[SC-13b9 scoped local review lock](docs/VM_LOCAL_REVIEW_LOCK.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:

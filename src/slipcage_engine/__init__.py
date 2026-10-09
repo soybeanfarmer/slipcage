@@ -77,6 +77,11 @@ from .vm_overlay_recovery import (
     review_overlay_recovery,
 )
 
+from .vm_local_review_lock import (
+    LocalReviewLockError, LocalReviewLockBusy, LockedRecoveryReview,
+    scoped_local_review_lock, review_overlay_with_local_lock,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -111,4 +116,6 @@ __all__ = [
     "OverlayPreflightError", "OverlayIntentPreflight", "inspect_overlay_intent",
     "OverlayRecoveryError", "RecoveryClassification", "OverlayRecoveryReview",
     "review_overlay_recovery",
+    "LocalReviewLockError", "LocalReviewLockBusy", "LockedRecoveryReview",
+    "scoped_local_review_lock", "review_overlay_with_local_lock",
 ]
