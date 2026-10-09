@@ -215,6 +215,8 @@ jobs:
           # SC-13b10 durable offline intent tests under ephemeral private runner roots.
           # Test subprocesses are ordinary Python; QEMU/VM/overlay remain disabled.
           python -m unittest discover -s tests -p 'test_vm_offline_fencing.py' -q
+          # SC-13b11 fake process identities and signal intents only; never real signals/QEMU.
+          python -m unittest discover -s tests -p 'test_vm_process_supervisor.py' -q
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh

@@ -35,6 +35,9 @@ from .vm_offline_fencing import (
     FencingJournalError, FencingJournalBusy, OfflineResolution,
     issue_offline_generation, resolve_offline_generation, inspect_offline_fencing,
 )
+from .vm_process_supervisor import (
+    ProcessSafetyError, ProcessScenario, ProcessPhase, simulate_fake_supervision,
+)
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -254,6 +257,16 @@ def build_parser() -> argparse.ArgumentParser:
     fence_resolve.add_argument("--resolution", required=True, choices=[r.value for r in OfflineResolution])
     fence_resolve.add_argument("--json", action="store_true")
 
+    process_fake = commands.add_parser(
+        "simulate-vm-process-supervision",
+        help="FAKE PID/observation TERM/KILL/reap intent model; no real process or QEMU",
+    )
+    process_fake.add_argument("file", help="Nonsynthetic SC-12 VM plan")
+    process_fake.add_argument("--assets-dir", required=True, help="Existing private local bytes")
+    process_fake.add_argument("--journal-root", required=True, help="Existing SC-13b10 offline intent journal")
+    process_fake.add_argument("--scenario", required=True, choices=[s.value for s in ProcessScenario])
+    process_fake.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -269,7 +282,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "stage-offline-vm-generation":
+        if args.command == "simulate-vm-process-supervision":
+            vm_definition = load_vm_plan(args.file)
+            asset_preflight = verify_local_vm_assets(vm_definition, args.assets_dir)
+            fencing_snapshot = inspect_offline_fencing(args.journal_root)
+            fake_process_result = simulate_fake_supervision(
+                vm_definition, asset_preflight, fencing_snapshot,
+                ProcessScenario(args.scenario),
+            )
+        elif args.command == "stage-offline-vm-generation":
             vm_definition = load_vm_plan(args.file)
             fencing_snapshot = issue_offline_generation(
                 args.root, vm_definition, args.attempt, args.expected_generation,
@@ -378,9 +399,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "simulate-vm-process-supervision":
+        if args.json:
+            print(fake_process_result.canonical_json().decode("ascii"))
+        else:
+            print("FAKE PROCESS INTENTS ONLY; "
+                  f"phase={fake_process_result.phase.value}; "
+                  "actual_signals_sent=false; execution_authorized=false")
+        return 5 if fake_process_result.phase is ProcessPhase.QUARANTINED else (
+            0 if fake_process_result.phase is ProcessPhase.SIMULATED_REAPED
+            else EXIT_INTERRUPTED
+        )
 
     if args.command in (
         "stage-offline-vm-generation", "inspect-offline-vm-generations",

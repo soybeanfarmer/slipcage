@@ -529,6 +529,27 @@ is **not proof of guest cleanup or authorization for live execution**.
 Only tiny files in intentionally selected development roots are created.
 See [SC-13b10 offline fencing journal](VM_OFFLINE_FENCING_JOURNAL.md).
 
+## SC-13b11 — Fake process supervision and host-slot safety contract
+
+The developer-only `simulate-vm-process-supervision` command consumes a
+nonsynthetic VM plan, locally byte-checked artifacts, and a matching
+**outstanding offline** SC-13b10 intent journal, then runs a pure in-memory
+fault model of an **invented process identity**. It models proposed TERM/KILL
+escalation, strict PID/start-tick/group checks, resource/deadline bounds, and
+unreaped-process quarantine:
+
+~~~bash
+slipcage simulate-vm-process-supervision /private/test-plan.json \
+  --assets-dir /private/local-assets \
+  --journal-root /private/offline-intents \
+  --scenario pid_reuse --json
+~~~
+
+There are **no real process signals, host-global execution locks, cgroup
+limits, QEMU/VM, overlays, or live cleanup**. Proposed shared-host slot names
+and successful fake reaping are NOT runtime proof or authorization. See
+[SC-13b11 process safety contract](VM_PROCESS_SUPERVISION_SAFETY.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
