@@ -40,6 +40,7 @@ from .vm_process_supervisor import (
 )
 from .vm_launch_dossier import LaunchDossierError, review_vm_launch_prerequisites
 from .vm_key_policy import VMKeyPolicyError, verify_vm_signing_key_policy
+from .vm_k3s_checksums import K3sReleaseChecksumError, verify_k3s_release_checksums
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -285,7 +286,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--key-policy",
         help="Optional private 0600 operator-supplied fingerprint/revocation policy (still untrusted)",
     )
+    launch_review.add_argument("--k3s-binary-checksums", help="Optional operator-supplied k3s sha256sum-amd64.txt; requires airgap checksums")
+    launch_review.add_argument("--k3s-airgap-checksums", help="Optional k3s-airgap-images-amd64.sha256sum; requires binary checksums")
     launch_review.add_argument("--json", action="store_true")
+
+    upstream = commands.add_parser(
+        "verify-k3s-upstream-checksums",
+        help="Read-only K3s binary and airgap tar checksum reconciliation (NOT upstream authentication)",
+    )
+    upstream.add_argument("file", help="Strict nonsynthetic SC-12 VM plan")
+    upstream.add_argument("--assets-dir", required=True, help="Private five-file asset directory")
+    upstream.add_argument("--binary-checksums", required=True, help="Local sha256sum-amd64.txt")
+    upstream.add_argument("--airgap-checksums", required=True, help="Local k3s-airgap-images-amd64.sha256sum")
+    upstream.add_argument("--json", action="store_true")
 
     signing_review = commands.add_parser(
         "verify-vm-signing-policy",
@@ -313,7 +326,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "verify-vm-signing-policy":
+        if args.command == "verify-k3s-upstream-checksums":
+            k3s_upstream_check = verify_k3s_release_checksums(
+                load_vm_plan(args.file), args.assets_dir,
+                args.binary_checksums, args.airgap_checksums,
+            )
+        elif args.command == "verify-vm-signing-policy":
             vm_key_policy_check = verify_vm_signing_key_policy(
                 load_vm_plan(args.file), args.statement, args.signature,
                 args.public_key, args.key_policy,
@@ -324,6 +342,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.public_key, args.host_snapshot,
                 args.reservation_root, args.journal_root,
                 key_policy_file=args.key_policy,
+                k3s_binary_checksums=args.k3s_binary_checksums,
+                k3s_airgap_checksums=args.k3s_airgap_checksums,
             )
         elif args.command == "simulate-vm-process-supervision":
             vm_definition = load_vm_plan(args.file)
@@ -442,9 +462,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "verify-k3s-upstream-checksums":
+        if args.json:
+            print(k3s_upstream_check.canonical_json().decode("ascii"))
+        else:
+            print("K3S RELEASE CHECKSUMS MATCH LOCALLY SUPPLIED BYTES AND PLAN; "
+                  "publisher_authenticated=false; execution_authorized=false")
+        return 0  # Locally consistent checksums; no trusted upstream source claimed.
 
     if args.command == "verify-vm-signing-policy":
         if args.json:

@@ -222,6 +222,9 @@ jobs:
           # SC-13b13 ephemeral Ed25519 keys and private local policy fixtures only.
           # No upstream trust assertion, release, guest VM, or production host changes.
           python -m unittest discover -s tests -p 'test_vm_key_policy.py' -q
+          # SC-13b14 local upstream-style checksum records and tiny fake K3s byte fixtures.
+          # No network downloads, qemu-img, guest launch or VPS operations.
+          python -m unittest discover -s tests -p 'test_vm_k3s_checksums.py' -q
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh
