@@ -39,6 +39,7 @@ from .vm_process_supervisor import (
     ProcessSafetyError, ProcessScenario, ProcessPhase, simulate_fake_supervision,
 )
 from .vm_launch_dossier import LaunchDossierError, review_vm_launch_prerequisites
+from .vm_key_policy import VMKeyPolicyError, verify_vm_signing_key_policy
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -280,7 +281,22 @@ def build_parser() -> argparse.ArgumentParser:
     launch_review.add_argument("--host-snapshot", required=True, help="Unverified operator-supplied host snapshot")
     launch_review.add_argument("--reservation-root", required=True, help="Completed nonquarantined local intent")
     launch_review.add_argument("--journal-root", required=True, help="Separate outstanding offline intent journal")
+    launch_review.add_argument(
+        "--key-policy",
+        help="Optional private 0600 operator-supplied fingerprint/revocation policy (still untrusted)",
+    )
     launch_review.add_argument("--json", action="store_true")
+
+    signing_review = commands.add_parser(
+        "verify-vm-signing-policy",
+        help="Offline detached signature plus supplied key fingerprint/revocation consistency",
+    )
+    signing_review.add_argument("file", help="Strict nonsynthetic SC-12 plan")
+    signing_review.add_argument("--statement", required=True)
+    signing_review.add_argument("--signature", required=True)
+    signing_review.add_argument("--public-key", required=True)
+    signing_review.add_argument("--key-policy", required=True)
+    signing_review.add_argument("--json", action="store_true")
 
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
@@ -297,11 +313,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "review-vm-launch-gates":
+        if args.command == "verify-vm-signing-policy":
+            vm_key_policy_check = verify_vm_signing_key_policy(
+                load_vm_plan(args.file), args.statement, args.signature,
+                args.public_key, args.key_policy,
+            )
+        elif args.command == "review-vm-launch-gates":
             vm_launch_dossier = review_vm_launch_prerequisites(
                 args.file, args.assets_dir, args.statement, args.signature,
                 args.public_key, args.host_snapshot,
                 args.reservation_root, args.journal_root,
+                key_policy_file=args.key_policy,
             )
         elif args.command == "simulate-vm-process-supervision":
             vm_definition = load_vm_plan(args.file)
@@ -420,9 +442,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "verify-vm-signing-policy":
+        if args.json:
+            print(vm_key_policy_check.canonical_json().decode("ascii"))
+        else:
+            print("SIGNATURE + SUPPLIED KEY POLICY LOCALLY CONSISTENT; "
+                  "publisher_identity_authenticated=false; execution_authorized=false")
+        return 0  # Means only local policy/signature consistency, never publisher identity.
 
     if args.command == "review-vm-launch-gates":
         if args.json:

@@ -27,6 +27,7 @@ from slipcage_engine.cli import main
 from slipcage_engine.vm_assets import ARTIFACTS, verify_local_vm_assets
 from slipcage_engine.vm_plan import load_vm_plan, validate_vm_plan_bytes
 from slipcage_engine.vm_provenance import API_VERSION as PROVENANCE_API
+from slipcage_engine.vm_key_policy import API_VERSION as KEY_POLICY_API
 from slipcage_engine.vm_host_readiness import API_VERSION as SNAPSHOT_API
 from slipcage_engine.vm_reservation import (
     stage_local_reservation, quarantine_local_reservation, QuarantineReason,
@@ -161,6 +162,67 @@ class LaunchPrerequisiteDossierTests(unittest.TestCase):
         with redirect_stdout(out), redirect_stderr(err):
             status = main(self.args() if args is None else args)
         return status, out.getvalue(), err.getvalue()
+
+    def policy_file(self):
+        policy_path = self.root / "operator-key-policy.json"
+        policy_path.write_bytes(canon({
+            "api_version": KEY_POLICY_API,
+            "policy_origin": "operator_supplied_unverified",
+            "source_label": "ci-test-not-publisher-authentication",
+            "release_id": "ci-test-not-trusted",
+            "plan_digest_sha256": self.plan.digest_sha256,
+            "statement_sha256": hashlib.sha256(self.statement.read_bytes()).hexdigest(),
+            "allowed_key_sha256": hashlib.sha256(self.pubkey.read_bytes()).hexdigest(),
+            "revoked_key_sha256": [],
+        }))
+        policy_path.chmod(0o600)
+        return policy_path
+
+    def test_dossier_without_optional_policy_marks_pin_unchecked(self):
+        report = self.review().to_dict()
+        self.assertIsNone(report["operator_key_policy_sha256"])
+        self.assertFalse(report["operator_key_pin_consistency_checked"])
+        self.assertFalse(report["policy_identity_authenticated_out_of_band"])
+        self.assertFalse(report["execution_authorized"])
+
+    def test_dossier_with_matched_policy_remains_blocked(self):
+        policy = self.policy_file()
+        report = self.review(key_policy_file=policy).to_dict()
+        self.assertTrue(report["operator_key_pin_consistency_checked"])
+        self.assertEqual(report["operator_key_policy_sha256"],
+                         hashlib.sha256(policy.read_bytes()).hexdigest())
+        self.assertFalse(report["policy_identity_authenticated_out_of_band"])
+        self.assertFalse(report["source_publisher_authenticated"])
+        self.assertIn("publisher_key_identity_not_authenticated_out_of_band",
+                      report["blockers"])
+        args = self.args()
+        args.insert(-1, str(policy))
+        args.insert(-2, "--key-policy")
+        code, output, error = self.cli(args)
+        self.assertEqual((code, error), (5, ""))
+        self.assertTrue(json.loads(output)["operator_key_pin_consistency_checked"])
+
+    def test_dossier_mismatched_key_policy_rejected_not_promoted_to_blocked(self):
+        policy = self.policy_file()
+        doc = json.loads(policy.read_bytes())
+        doc["allowed_key_sha256"] = "f"*64
+        policy.write_bytes(canon(doc))
+        with self.assertRaises(Exception):
+            self.review(key_policy_file=policy)
+        args = self.args()
+        args[-1:-1] = ["--key-policy", str(policy)]
+        code, output, error = self.cli(args)
+        self.assertEqual((code, output), (2, ""))
+        self.assertTrue(error)
+
+    def test_dossier_revoked_key_policy_refused(self):
+        policy = self.policy_file()
+        doc = json.loads(policy.read_bytes())
+        doc["revoked_key_sha256"] = [doc["allowed_key_sha256"]]
+        policy.write_bytes(canon(doc))
+        with self.assertRaises(Exception):
+            self.review(key_policy_file=policy)
+        self.assertFalse(self.review().to_dict()["execution_authorized"])
 
     def test_all_valid_local_checks_still_block_launch(self):
         report = self.review().to_dict()

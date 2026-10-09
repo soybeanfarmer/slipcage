@@ -23,6 +23,7 @@ from .vm_overlay_preflight import inspect_overlay_intent
 from .vm_overlay_recovery import RecoveryClassification, review_overlay_recovery
 from .vm_plan import load_vm_plan
 from .vm_provenance import verify_provenance
+from .vm_key_policy import verify_vm_signing_key_policy
 from .vm_qemu_blueprint import build_qemu_blueprint
 from .vm_reservation import inspect_local_reservation
 
@@ -62,6 +63,7 @@ class VMLaunchPrerequisiteDossier:
     offline_issue_sha256: str
     base_file_sha256: str
     base_file_size_bytes: int
+    operator_policy_digest_sha256: str | None = None
 
     def to_dict(self) -> dict:
         blockers = list(_STATIC_BLOCKERS)
@@ -77,6 +79,9 @@ class VMLaunchPrerequisiteDossier:
             "local_asset_total_size_bytes": self.asset_total_size_bytes,
             "signed_statement_sha256": self.statement_digest_sha256,
             "supplied_key_fingerprint_sha256": self.supplied_public_key_fingerprint_sha256,
+            "operator_key_policy_sha256": self.operator_policy_digest_sha256,
+            "operator_key_pin_consistency_checked": self.operator_policy_digest_sha256 is not None,
+            "policy_identity_authenticated_out_of_band": False,
             "operator_snapshot_sha256": self.snapshot_digest_sha256,
             "reported_capacity_assessment": self.reported_capacity_assessment,
             "reported_host_blockers": list(self.reported_host_blockers),
@@ -121,6 +126,7 @@ def review_vm_launch_prerequisites(
     statement_file: str | Path, signature_file: str | Path,
     public_key_file: str | Path, snapshot_file: str | Path,
     reservation_root: str | Path, journal_root: str | Path,
+    key_policy_file: str | Path | None = None,
 ) -> VMLaunchPrerequisiteDossier:
     """Repeat file-backed checks, cross-bind inputs, and ALWAYS block execution.
 
@@ -135,6 +141,18 @@ def review_vm_launch_prerequisites(
     # Already binding all asset digests, this only constructs a non-runnable prefix.
     blueprint = build_qemu_blueprint(plan, assets)
     provenance = verify_provenance(plan, statement_file, signature_file, public_key_file)
+    policy_result = (
+        verify_vm_signing_key_policy(
+            plan, statement_file, signature_file, public_key_file, key_policy_file,
+        ) if key_policy_file is not None else None
+    )
+    if policy_result is not None and (
+        policy_result.plan_digest_sha256 != provenance.plan_digest_sha256
+        or policy_result.statement_digest_sha256 != provenance.statement_digest_sha256
+        or policy_result.supplied_public_key_fingerprint_sha256
+            != provenance.trusted_key_fingerprint_sha256
+    ):
+        raise LaunchDossierError("Inconsistent policy signature, key and plan identities")
     snapshot = load_host_snapshot(snapshot_file)
     host = assess_host_snapshot(plan, snapshot)
     reservation = inspect_local_reservation(reservation_root)
@@ -171,4 +189,5 @@ def review_vm_launch_prerequisites(
         journal.generation, journal.active_attempt,
         journal.active_record_sha256,
         base.base_sha256, base.base_size_bytes,
+        policy_result.policy_digest_sha256 if policy_result is not None else None,
     )

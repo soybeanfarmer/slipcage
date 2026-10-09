@@ -564,6 +564,21 @@ status 5: local coherence is **not** verified publisher identity, target VPS
 capacity, guest image integrity or approval to launch. No subprocess, disk
 creation or VPS access occurs. See [SC-13b12 launch prerequisite dossier](VM_LAUNCH_PREREQUISITES.md).
 
+## SC-13b13 — Optional scoped operator signing-key fingerprint policy
+
+The read-only `slipcage verify-vm-signing-policy` command checks an
+independently supplied **local** 0600 pin policy against the plan, exact
+signed-release statement, supplied Ed25519 key and bounded revoked-key
+list. The SC-13b12 `review-vm-launch-gates` command accepts optional
+`--key-policy FILE` for the same cross-check.
+
+This prevents *accidental* key substitution if the policy is separately
+controlled. It **does not authenticate** the policy or publisher, prove
+revocation completeness or permit QEMU/VM execution. If an attacker replaces
+both key and policy, local checks can still agree; real trust requires an
+independently verified publisher channel. See
+[SC-13b13 offline key-pin policy](VM_SIGNING_KEY_POLICY.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
