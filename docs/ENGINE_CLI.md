@@ -496,6 +496,24 @@ cleanup or permission to run a guest. CI only tests tiny disposable fixtures;
 no QEMU/guest workloads or VPS paths are accessed. See
 [SC-13b8 recovery triage limitations](VM_OVERLAY_RECOVERY_REVIEW.md).
 
+## SC-13b9 — Kernel advisory lock around local recovery inspection
+
+The optional `slipcage review-vm-overlay-locked` command acquires a real,
+**same-root Linux advisory flock** for the duration of SC-13b8's read-only
+recovery scan. It may create one **empty 0600 persistent lockfile** in the
+operator-chosen preexisting private scratch root:
+
+~~~bash
+slipcage review-vm-overlay-locked /private/development-reservation-root --json
+~~~
+
+This is **not** a guest-process or host-global lease: the lock is released
+before the command returns, and process death cannot prove guest cleanup.
+A safe-looking observation cannot authorize QEMU or deletion. CI checks real
+cross-process flock contention using ephemeral scratch roots only; no
+production VPS files, overlays or VMs are touched. See
+[SC-13b9 scoped local review lock](VM_LOCAL_REVIEW_LOCK.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

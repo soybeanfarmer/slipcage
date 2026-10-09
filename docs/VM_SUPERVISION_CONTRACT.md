@@ -75,3 +75,7 @@ No release, SSH action, VPS inspection, VM start, storage or networking change i
 ## SC-13b7 — Non-executing backing-image preflight
 
 [SC-13b7](VM_QCOW2_BASE_PREFLIGHT.md) binds the fixed private overlay-intent token to an operator-declared, locally hashed base QCOW2 file and conservative header fields, without creating a disk or checking its full metadata tree. OS-backed resource supervision, host leases, real backing-chain safety and verified cleanup remain unimplemented.
+
+## SC-13b9 — Real lock for one local recovery reviewer only
+
+The [SC-13b9 scoped OS-backed flock](VM_LOCAL_REVIEW_LOCK.md) prevents *cooperating simultaneous review processes sharing one root* from racing. The lock exists only during inspection. It is NOT the required durable, host-global QEMU execution lease or a cgroup/watchdog/guest cleanup enforcement mechanism.

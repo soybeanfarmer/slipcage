@@ -197,6 +197,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vm_overlay_preflight.py' -q
           # SC-13b8 read-only recovery triage using fixture-only temp roots; no QEMU/overlay creation.
           python -m unittest discover -s tests -p 'test_vm_overlay_recovery.py' -q
+          # SC-13b9 kernel flock between CI test subprocesses; no guest/QEMU/PVS deployment.
+          python -m unittest discover -s tests -p 'test_vm_local_review_lock.py' -q
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

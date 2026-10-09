@@ -28,6 +28,9 @@ from .vm_reservation import (
 )
 from .vm_overlay_preflight import OverlayPreflightError, inspect_overlay_intent
 from .vm_overlay_recovery import OverlayRecoveryError, RecoveryClassification, review_overlay_recovery
+from .vm_local_review_lock import (
+    LocalReviewLockError, LocalReviewLockBusy, review_overlay_with_local_lock,
+)
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -212,6 +215,13 @@ def build_parser() -> argparse.ArgumentParser:
     recovery.add_argument("root", help="Existing trusted private local reservation root")
     recovery.add_argument("--json", action="store_true")
 
+    locked = commands.add_parser(
+        "review-vm-overlay-locked",
+        help="Acquire scoped Linux flock, then read-only triage; creates empty private lockfile only",
+    )
+    locked.add_argument("root", help="Existing trusted private local reservation root")
+    locked.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -227,7 +237,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "review-vm-overlay":
+        if args.command == "review-vm-overlay-locked":
+            locked_review = review_overlay_with_local_lock(args.root)
+        elif args.command == "review-vm-overlay":
             overlay_review = review_overlay_recovery(args.root)
         elif args.command == "inspect-vm-backing":
             vm_definition = load_vm_plan(args.file)
@@ -316,9 +328,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError) as exc:
+    except LocalReviewLockBusy as exc:
+        print(f"slipcage {args.command}: {exc}", file=sys.stderr)
+        return 5
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "review-vm-overlay-locked":
+        if args.json:
+            print(locked_review.canonical_json().decode("ascii"))
+        else:
+            print("SCOPED LOCAL FLOCK REVIEW ONLY; "
+                  f"classification={locked_review.recovery.classification.value}; "
+                  "lock_held_after_command=false; execution_authorized=false")
+        return (0 if locked_review.recovery.classification is RecoveryClassification.STAGED_ONLY
+                else 5)
 
     if args.command == "review-vm-overlay":
         if args.json:
