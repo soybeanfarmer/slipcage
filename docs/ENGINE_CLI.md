@@ -610,6 +610,20 @@ The optional paired `--artifact-source-ledger` and
 a real guest, authenticate software or prove a host's readiness.
 See [SC-13b15 five-artifact source ledger](VM_ARTIFACT_SOURCE_LEDGER.md).
 
+## SC-13b16 — Bounded read-only QCOW2 v3 metadata graph
+
+The optional `slipcage inspect-vm-qcow2-metadata` command checks a
+**very narrow subset** of small nonbacked QCOW2 v3 images: aligned
+L1/L2 table pointers, copied-bit requirements, unique physical cluster
+ownership, and exact 16-bit refcounts. Its hard **64 MiB physical**
+cap and strict feature exclusions deliberately reject most real OS bases.
+
+A passing small-graph check is only local structural consistency, **not**
+a publisher-verified OS image, valid QEMU backing chain, safe guest, or
+execution permission. Existing `inspect-vm-backing` remains header-only;
+the launch dossier remains permanently blocked. No QEMU or `qemu-img`
+is invoked. See [SC-13b16 narrow QCOW2 metadata checks](VM_QCOW2_METADATA_SUBSET.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**

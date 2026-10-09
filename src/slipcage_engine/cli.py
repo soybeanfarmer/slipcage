@@ -42,6 +42,7 @@ from .vm_launch_dossier import LaunchDossierError, review_vm_launch_prerequisite
 from .vm_key_policy import VMKeyPolicyError, verify_vm_signing_key_policy
 from .vm_k3s_checksums import K3sReleaseChecksumError, verify_k3s_release_checksums
 from .vm_artifact_sources import ArtifactSourceError, review_artifact_source_ledger
+from .vm_qcow2_metadata import Qcow2MetadataError, inspect_bounded_qcow2_metadata
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -293,6 +294,14 @@ def build_parser() -> argparse.ArgumentParser:
     launch_review.add_argument("--artifact-source-receipts", help="Optional private 0700 receipt directory (paired)")
     launch_review.add_argument("--json", action="store_true")
 
+    qmetadata = commands.add_parser(
+        "inspect-vm-qcow2-metadata",
+        help="Read-only narrow QCOW2 L1/L2/refcount check for small simple files; no VM",
+    )
+    qmetadata.add_argument("file", help="Nonsynthetic SC-12 plan with pinned base hash")
+    qmetadata.add_argument("--assets-dir", required=True, help="Private existing five-asset directory")
+    qmetadata.add_argument("--json", action="store_true")
+
     sources = commands.add_parser(
         "review-vm-artifact-sources",
         help="Read-only compare five untrusted operator source references, receipts and real local bytes",
@@ -339,7 +348,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "review-vm-artifact-sources":
+        if args.command == "inspect-vm-qcow2-metadata":
+            bounded_metadata = inspect_bounded_qcow2_metadata(
+                load_vm_plan(args.file), args.assets_dir,
+            )
+        elif args.command == "review-vm-artifact-sources":
             source_ledger_review = review_artifact_source_ledger(
                 load_vm_plan(args.file), args.assets_dir,
                 args.ledger, args.receipts_dir,
@@ -482,9 +495,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError, ArtifactSourceError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError, ArtifactSourceError, Qcow2MetadataError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "inspect-vm-qcow2-metadata":
+        if args.json:
+            print(bounded_metadata.canonical_json().decode("ascii"))
+        else:
+            print("BOUNDED QCOW2 METADATA SUBSET CONSISTENT; "
+                  "whole_format_supported=false; execution_authorized=false")
+        return 0  # Valid *narrow* local graph only, never a safe VM base claim.
 
     if args.command == "review-vm-artifact-sources":
         if args.json:
