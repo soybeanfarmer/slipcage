@@ -406,6 +406,20 @@ limits, QEMU/VM, overlays, or live cleanup**. Proposed shared-host slot names
 and successful fake reaping are NOT runtime proof or authorization. See
 [SC-13b11 process safety contract](docs/VM_PROCESS_SUPERVISION_SAFETY.md).
 
+## SC-13b12 — Cross-checked local VM launch prerequisites (ALWAYS BLOCKED)
+
+`slipcage review-vm-launch-gates` now combines the SC-12 plan, five
+byte-checked assets, detached signature against a **supplied untrusted key**,
+operator-reported host snapshot, private reservation, base QCOW2 header
+preflight, recovery review, and outstanding offline fencing generation.
+
+The read-only review refuses mismatched identities, corrupt sources, missing
+files, quarantines and unexpected overlay nodes. Even when all inputs match,
+the output **always** reports `execution_authorized: false` and returns
+status 5: local coherence is **not** verified publisher identity, target VPS
+capacity, guest image integrity or approval to launch. No subprocess, disk
+creation or VPS access occurs. See [SC-13b12 launch prerequisite dossier](docs/VM_LAUNCH_PREREQUISITES.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:

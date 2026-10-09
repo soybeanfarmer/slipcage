@@ -50,3 +50,7 @@ Every report says `observations_are_injected_fake_data: true`, and explicitly se
 Real runtime gates remain: independent trusted provenance and owner-approved VPS resource/KVM/provider evidence ([Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23)); and a separately reviewed genuine OS-backed, single-guest QEMU adapter with fixed allowlisted argv, immutable-backed private overlay, cgroup+filesystem quotas, pidfd/group-aware watchdog/reaping, failure-preserving cleanup, isolation, host-global generation fencing and a **separately authorized bounded live guest test** ([Issue #25](https://github.com/soybeanfarmer/slipcage/issues/25)).
 
 **No release publication, VM execution or change to VPS/production systems is authorized by this PR.**
+
+## SC-13b12 — Cross-checked prelaunch dossier, never an execution gate
+
+The new [SC-13b12 prerequisite review](VM_LAUNCH_PREREQUISITES.md) ties the exact offline plan/assets/provenance/host snapshot/reservation/base-header/attempt identity together and lists outstanding runtime blockers. Its **success is always blocked** (exit 5); it never treats the fake-process supervisor or caller-supplied keys/host facts as proof that QEMU may execute.

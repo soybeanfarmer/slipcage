@@ -95,6 +95,11 @@ from .vm_process_supervisor import (
     step_fake_process, simulate_fake_supervision,
 )
 
+from .vm_launch_dossier import (
+    LaunchDossierError, VMLaunchPrerequisiteDossier,
+    review_vm_launch_prerequisites,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -138,4 +143,6 @@ __all__ = [
     "FakeProcessIdentity", "ProcessSafetyPolicy", "FakeProcessObservation",
     "ProcessSafetyTrace", "bind_fake_supervisor", "begin_fake_process",
     "step_fake_process", "simulate_fake_supervision",
+    "LaunchDossierError", "VMLaunchPrerequisiteDossier",
+    "review_vm_launch_prerequisites",
 ]
