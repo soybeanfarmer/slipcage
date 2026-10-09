@@ -88,6 +88,13 @@ from .vm_offline_fencing import (
     resolve_offline_generation,
 )
 
+from .vm_process_supervisor import (
+    ProcessSafetyError, ProcessPhase, ProcessScenario,
+    FakeProcessIdentity, ProcessSafetyPolicy, FakeProcessObservation,
+    ProcessSafetyTrace, bind_fake_supervisor, begin_fake_process,
+    step_fake_process, simulate_fake_supervision,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -127,4 +134,8 @@ __all__ = [
     "FencingJournalError", "FencingJournalBusy", "OfflineResolution",
     "FencingSnapshot", "inspect_offline_fencing", "issue_offline_generation",
     "resolve_offline_generation",
+    "ProcessSafetyError", "ProcessPhase", "ProcessScenario",
+    "FakeProcessIdentity", "ProcessSafetyPolicy", "FakeProcessObservation",
+    "ProcessSafetyTrace", "bind_fake_supervisor", "begin_fake_process",
+    "step_fake_process", "simulate_fake_supervision",
 ]

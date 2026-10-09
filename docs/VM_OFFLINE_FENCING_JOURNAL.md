@@ -61,3 +61,7 @@ CI tests create private **ephemeral** roots and fabricated, nonsynthetic-*shaped
 [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23) remains open for independently authenticated real OS/kernel/K3s/QEMU artifacts and owner-approved fresh VPS capacity, provider permission and usable KVM evidence. [Issue #25](https://github.com/soybeanfarmer/slipcage/issues/25) still requires a genuinely host-global, OS-enforced guest lease across service roots, durable process identity and fencing, *actual* exclusively created bounded QCOW2 overlay with immutable verified base, enforced cgroups/watchdog, isolated guest network, verified crash recovery and an owner-approved bounded single-VM validation.
 
 **This PR does not release, SSH, deploy, inspect the VPS, create an overlay, run qemu-img/QEMU, or modify existing production SQLite/reports/backups.**
+
+## SC-13b11 — Binding a fake process safety policy to an outstanding offline attempt
+
+The [process supervision fake-observation model](VM_PROCESS_SUPERVISION_SAFETY.md) can consume the **verified current outstanding** SC-13b10 journal snapshot and enforce its expected plan/attempt/generation digest in memory, but never binds the ledger to a live child PID, host-global lock or cleanup verifier. Abandoned/quarantined offline intents are rejected. Real VM fencing and signal/reap remain unimplemented.
