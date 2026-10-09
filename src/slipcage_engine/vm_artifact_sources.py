@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -118,6 +119,14 @@ def _url(value: object, upstream_asset: str | None, release_tag: str) -> bool:
                 or any(c in value for c in ("\\", " ", "\n", "\r", "\x00"))):
             return False
     except ValueError:
+        return False
+    # DNS-shaped IPv4 literals and private TLDs are not public publisher domains.
+    try:
+        ipaddress.ip_address(parsed.hostname)
+        return False
+    except ValueError:
+        pass
+    if parsed.hostname.endswith((".local", ".internal", ".localhost", ".invalid", ".test")):
         return False
     if upstream_asset is not None:
         prefix = "https://github.com/k3s-io/k3s/releases/download/"
