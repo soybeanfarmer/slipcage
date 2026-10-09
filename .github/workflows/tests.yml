@@ -212,6 +212,8 @@ jobs:
           # SC-13b14 local upstream-style checksum records and tiny fake K3s byte fixtures.
           # No network downloads, qemu-img, guest launch or VPS operations.
           python -m unittest discover -s tests -p 'test_vm_k3s_checksums.py' -q
+          # SC-13b15 five private source/receipt fixture documents; NO vendor authenticity claim.
+          python -m unittest discover -s tests -p 'test_vm_artifact_sources.py' -q
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Python syntax

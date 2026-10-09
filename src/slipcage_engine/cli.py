@@ -41,6 +41,7 @@ from .vm_process_supervisor import (
 from .vm_launch_dossier import LaunchDossierError, review_vm_launch_prerequisites
 from .vm_key_policy import VMKeyPolicyError, verify_vm_signing_key_policy
 from .vm_k3s_checksums import K3sReleaseChecksumError, verify_k3s_release_checksums
+from .vm_artifact_sources import ArtifactSourceError, review_artifact_source_ledger
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -288,7 +289,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     launch_review.add_argument("--k3s-binary-checksums", help="Optional operator-supplied k3s sha256sum-amd64.txt; requires airgap checksums")
     launch_review.add_argument("--k3s-airgap-checksums", help="Optional k3s-airgap-images-amd64.sha256sum; requires binary checksums")
+    launch_review.add_argument("--artifact-source-ledger", help="Optional operator-supplied canonical five-asset source ledger")
+    launch_review.add_argument("--artifact-source-receipts", help="Optional private 0700 receipt directory (paired)")
     launch_review.add_argument("--json", action="store_true")
+
+    sources = commands.add_parser(
+        "review-vm-artifact-sources",
+        help="Read-only compare five untrusted operator source references, receipts and real local bytes",
+    )
+    sources.add_argument("file", help="Nonsynthetic SC-12 pinned VM plan")
+    sources.add_argument("--assets-dir", required=True)
+    sources.add_argument("--ledger", required=True)
+    sources.add_argument("--receipts-dir", required=True)
+    sources.add_argument("--json", action="store_true")
 
     upstream = commands.add_parser(
         "verify-k3s-upstream-checksums",
@@ -326,7 +339,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "verify-k3s-upstream-checksums":
+        if args.command == "review-vm-artifact-sources":
+            source_ledger_review = review_artifact_source_ledger(
+                load_vm_plan(args.file), args.assets_dir,
+                args.ledger, args.receipts_dir,
+            )
+        elif args.command == "verify-k3s-upstream-checksums":
             k3s_upstream_check = verify_k3s_release_checksums(
                 load_vm_plan(args.file), args.assets_dir,
                 args.binary_checksums, args.airgap_checksums,
@@ -344,6 +362,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 key_policy_file=args.key_policy,
                 k3s_binary_checksums=args.k3s_binary_checksums,
                 k3s_airgap_checksums=args.k3s_airgap_checksums,
+                artifact_source_ledger=args.artifact_source_ledger,
+                artifact_source_receipts=args.artifact_source_receipts,
             )
         elif args.command == "simulate-vm-process-supervision":
             vm_definition = load_vm_plan(args.file)
@@ -462,9 +482,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError, ProcessSafetyError, LaunchDossierError, VMKeyPolicyError, K3sReleaseChecksumError, ArtifactSourceError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command == "review-vm-artifact-sources":
+        if args.json:
+            print(source_ledger_review.canonical_json().decode("ascii"))
+        else:
+            print("FIVE LOCAL ASSET SOURCE RECEIPTS MATCH; "
+                  "publisher_origin_authenticated=false; execution_authorized=false")
+        return 5  # Human upstream origin authentication is ALWAYS pending.
 
     if args.command == "verify-k3s-upstream-checksums":
         if args.json:

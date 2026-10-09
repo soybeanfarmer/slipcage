@@ -595,6 +595,21 @@ authorizes a VM. The new work never fetches software, unpacks archives,
 opens KVM or changes a host. See
 [SC-13b14 K3s checksum contract](VM_K3S_RELEASE_CHECKSUMS.md).
 
+## SC-13b15 — Offline source receipts for all five VM artifacts
+
+The read-only `slipcage review-vm-artifact-sources` command ties five
+operator-supplied release/source references and private JSON receipts to
+the actual bytes-on-disk hashes and SC-12 plan digest. It rejects missing,
+reordered or changed receipts, mismatched artifact pins and unsafe source
+URL shapes. This makes the source-custody handoff reviewable, but the
+receipt/URL origin remains **unauthenticated**.
+
+The optional paired `--artifact-source-ledger` and
+`--artifact-source-receipts` arguments extend the always-blocked
+`review-vm-launch-gates` dossier. Source checking cannot authorize
+a real guest, authenticate software or prove a host's readiness.
+See [SC-13b15 five-artifact source ledger](VM_ARTIFACT_SOURCE_LEDGER.md).
+
 ## Deployment boundary
 
 Neither `pyproject.toml` nor the new CLI is installed on the VPS by `playbooks/site.yml`. Existing production behavior is unchanged even if the source commit is released via the standard pull mechanism. **Never interpret an installed importable package or a successful validation as a successfully completed Kubernetes experiment.**
