@@ -113,6 +113,11 @@ from .vm_artifact_sources import (
     ArtifactSourceError, ArtifactSourceReview, review_artifact_source_ledger,
 )
 
+from .vm_qcow2_metadata import (
+    Qcow2MetadataError, BoundedQcow2MetadataReview,
+    inspect_bounded_qcow2_metadata,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -162,4 +167,6 @@ __all__ = [
     "K3sReleaseChecksumError", "K3sUpstreamChecksumCheck",
     "verify_k3s_release_checksums",
     "ArtifactSourceError", "ArtifactSourceReview", "review_artifact_source_ledger",
+    "Qcow2MetadataError", "BoundedQcow2MetadataReview",
+    "inspect_bounded_qcow2_metadata",
 ]

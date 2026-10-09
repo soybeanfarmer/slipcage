@@ -46,3 +46,7 @@ To progress beyond SC-13b7, [Issue #23](https://github.com/soybeanfarmer/slipcag
 ## SC-13b8 — Suspicious overlay remnants and recovery
 
 The [read-only overlay recovery review](VM_OVERLAY_RECOVERY_REVIEW.md) distinguishes a header/intent preflight from actual recovered VM state. It performs **stat-only** checks on an unexpected overlay-named node, and never opens the disk or deletes evidence; full backing-chain validity and host cleanup remain unverified.
+
+## SC-13b16 — Separate bounded metadata graph inspection
+
+The [SC-13b16 narrow QCOW2 metadata checker](VM_QCOW2_METADATA_SUBSET.md) adds a separate, explicitly invoked read-only verification of L1/L2 pointers and 16-bit refcounts for a **small 64-MiB physical maximum** file with one refcount block. It does not change this original header-only preflight, is not a complete `qemu-img check` replacement, and neither form authenticates guest contents or permits QEMU execution.
