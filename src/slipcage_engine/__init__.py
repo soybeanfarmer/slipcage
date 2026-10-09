@@ -104,6 +104,11 @@ from .vm_key_policy import (
     VMKeyPolicyError, SigningKeyPolicyCheck, verify_vm_signing_key_policy,
 )
 
+from .vm_k3s_checksums import (
+    K3sReleaseChecksumError, K3sUpstreamChecksumCheck,
+    verify_k3s_release_checksums,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -150,4 +155,6 @@ __all__ = [
     "LaunchDossierError", "VMLaunchPrerequisiteDossier",
     "review_vm_launch_prerequisites",
     "VMKeyPolicyError", "SigningKeyPolicyCheck", "verify_vm_signing_key_policy",
+    "K3sReleaseChecksumError", "K3sUpstreamChecksumCheck",
+    "verify_k3s_release_checksums",
 ]

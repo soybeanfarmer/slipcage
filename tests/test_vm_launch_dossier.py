@@ -224,6 +224,66 @@ class LaunchPrerequisiteDossierTests(unittest.TestCase):
             self.review(key_policy_file=policy)
         self.assertFalse(self.review().to_dict()["execution_authorized"])
 
+    def k3s_manifests(self):
+        binary = self.root / "upstream-style-sha256sum-amd64.txt"
+        airgap = self.root / "upstream-style-airgap-amd64.sha256sum"
+        binary.write_bytes((
+            self.plan.design["artifacts"]["k3s_binary_sha256"] + "  k3s" + chr(10)
+        ).encode("ascii"))
+        airgap.write_bytes((
+            self.plan.design["artifacts"]["container_images_sha256"]
+            + "  k3s-airgap-images-amd64.tar" + chr(10)
+        ).encode("ascii"))
+        binary.chmod(0o600)
+        airgap.chmod(0o600)
+        return binary, airgap
+
+    def test_optional_k3s_release_checksum_sources_still_cannot_authorize_launch(self):
+        bin_manifest, tar_manifest = self.k3s_manifests()
+        # Strict positional binding and full local five-asset byte verification
+        # happens again in the optional standalone vendor-style checksum step.
+        report = self.review(
+            k3s_binary_checksums=bin_manifest,
+            k3s_airgap_checksums=tar_manifest,
+        ).to_dict()
+        self.assertTrue(report["k3s_release_checksums_checked"])
+        self.assertEqual(report["status"], "blocked_no_execution_permission")
+        self.assertFalse(report["k3s_release_checksum_source_authenticated"])
+        self.assertFalse(report["execution_authorized"])
+        self.assertEqual(report["k3s_binary_checksum_manifest_sha256"],
+                         hashlib.sha256(bin_manifest.read_bytes()).hexdigest())
+        args = self.args()
+        args[-1:-1] = [
+            "--k3s-binary-checksums", str(bin_manifest),
+            "--k3s-airgap-checksums", str(tar_manifest),
+        ]
+        code, stdout, stderr = self.cli(args)
+        self.assertEqual((code, stderr), (5, ""))
+        self.assertFalse(json.loads(stdout)["execution_authorized"])
+
+    def test_optional_k3s_checksums_require_both_manifest_paths(self):
+        binary, _ = self.k3s_manifests()
+        with self.assertRaises(LaunchDossierError):
+            self.review(k3s_binary_checksums=binary)
+        args = self.args()
+        args[-1:-1] = ["--k3s-binary-checksums", str(binary)]
+        code, output, stderr = self.cli(args)
+        self.assertEqual((code, output), (2, ""))
+        self.assertTrue(stderr)
+
+    def test_optional_k3s_manifest_tamper_fails_no_dossier(self):
+        binary, airgap = self.k3s_manifests()
+        binary.write_bytes(("f"*64 + "  k3s" + chr(10)).encode("ascii"))
+        code, output, error = self.cli(
+            self.args()[:-1] + [
+                "--k3s-binary-checksums", str(binary),
+                "--k3s-airgap-checksums", str(airgap),
+                "--json",
+            ]
+        )
+        self.assertEqual((code, output), (2, ""))
+        self.assertTrue(error)
+
     def test_all_valid_local_checks_still_block_launch(self):
         report = self.review().to_dict()
         self.assertEqual(report["api_version"], API_VERSION)

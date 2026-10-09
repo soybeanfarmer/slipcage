@@ -435,6 +435,22 @@ both key and policy, local checks can still agree; real trust requires an
 independently verified publisher channel. See
 [SC-13b13 offline key-pin policy](docs/VM_SIGNING_KEY_POLICY.md).
 
+## SC-13b14 — Upstream-style K3s release checksum reconciliation (offline)
+
+The read-only `slipcage verify-k3s-upstream-checksums` command compares an
+operator-supplied `sha256sum-amd64.txt` and
+`k3s-airgap-images-amd64.sha256sum` with the exact local `k3s.bin`
+and **uncompressed** `container-images.tar` bytes and SC-12 plan pins.
+It also checks the other three private assets' hashes. A matching
+checksum file **does not prove trusted upstream origin**; independent
+acquisition and publisher verification remain human-owned.
+
+The always-blocked `review-vm-launch-gates` optionally accepts both
+`--k3s-binary-checksums` and `--k3s-airgap-checksums`, but never
+authorizes a VM. The new work never fetches software, unpacks archives,
+opens KVM or changes a host. See
+[SC-13b14 K3s checksum contract](docs/VM_K3S_RELEASE_CHECKSUMS.md).
+
 ## Development and testing
 
 Use PRs from feature branches; do not merge or release without the project owner's review. Local baseline validation matches the repository's CI entry point:

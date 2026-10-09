@@ -56,3 +56,7 @@ The necessary real prerequisites remain in [Issue #23](https://github.com/soybea
 ## SC-13b13 — Additional local key pin consistency, never publisher authentication
 
 The dossier may now accept an **optional** `--key-policy /private/policy.json`, validated as detailed in [SC-13b13](VM_SIGNING_KEY_POLICY.md). This policy links a caller-supplied public-key SHA-256 fingerprint, the exact release, signed-statement and plan digests, and a bounded declared revoked-key list. It must fail closed on wrong or listed-revoked keys. A matched caller-supplied policy **is not trusted publisher identity or complete upstream revocation evidence**. With or without the policy the dossier is always execution-blocked (CLI 5); no vendor-authenticated keys were introduced in the repository.
+
+## SC-13b14 — Optional exact K3s release checksums against local bytes
+
+The dossier now supports optional paired `--k3s-binary-checksums` and `--k3s-airgap-checksums` arguments. As described in [SC-13b14](VM_K3S_RELEASE_CHECKSUMS.md), they strictly compare supplied K3s release checksum text to matching local amd64 binary and **uncompressed** airgap archive bytes, after rehashing all five assets. The data's **upstream identity is still unverified**; even fully coherent checksum/plan/reservation/journal evidence returns `blocked_no_execution_permission`, exit 5. Both arguments are required together, else exit 2. No real vendor keys, live binaries, actual VPS inventory or guest launch authorization is included.
