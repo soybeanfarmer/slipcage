@@ -208,6 +208,7 @@ class ExternalQcow2EvidenceTests(unittest.TestCase):
         self.assertFalse(doc["external_qemu_img_execution_attested"])
         self.assertFalse(doc["qcow2_full_metadata_independently_verified"])
         self.assertFalse(doc["guest_execution_authorized"])
+        self.assertFalse(doc["execution_authorized"])
 
     def test_pretty_printed_qapi_json_allowed_with_exact_raw_byte_hash(self):
         # Real qemu-img emits pretty JSON and a newline. SHA covers actual
@@ -389,6 +390,19 @@ class ExternalQcow2EvidenceTests(unittest.TestCase):
             self.review()
         (self.evidence / "capture.json").unlink()
         with self.assertRaises(Qcow2ExternalEvidenceError):
+            self.review()
+
+    def test_compressed_cluster_claim_does_not_pass_uncompressed_report(self):
+        self.check_data["compressed-clusters"] = 1
+        self.write()
+        with self.assertRaisesRegex(Qcow2ExternalEvidenceError, "Compressed"):
+            self.review()
+
+    def test_capture_manifest_must_be_canonical_even_if_reports_are_pretty(self):
+        path = self.evidence / "capture.json"
+        capture = json.loads(path.read_bytes())
+        path.write_bytes((json.dumps(capture, indent=2) + chr(10)).encode("ascii"))
+        with self.assertRaisesRegex(Qcow2ExternalEvidenceError, "canonical"):
             self.review()
 
     def test_observed_external_statistics_must_be_self_consistent(self):

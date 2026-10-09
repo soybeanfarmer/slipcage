@@ -160,6 +160,8 @@ def _validate_check(check: dict, *, physical: int) -> None:
     for key in ("total-clusters", "allocated-clusters", "fragmented-clusters", "compressed-clusters"):
         if key in check and not _int_in(check[key], 0, max_cluster_count):
             raise Qcow2ExternalEvidenceError("Invalid or unbounded QEMU cluster statistic")
+    if "compressed-clusters" in check and check["compressed-clusters"] != 0:
+        raise Qcow2ExternalEvidenceError("Compressed QCOW2 data not supported by this report policy")
     if ("total-clusters" in check and "allocated-clusters" in check
             and check["allocated-clusters"] > check["total-clusters"]):
         raise Qcow2ExternalEvidenceError("Impossible allocated/total QEMU cluster counts")
@@ -208,6 +210,7 @@ class Qcow2ExternalEvidenceReview:
             "host_kvm_readiness_verified": False,
             "host_global_vm_lease": False,
             "guest_execution_authorized": False,
+            "execution_authorized": False,
             "vm_launched": False,
             "host_modified": False,
         }
@@ -245,6 +248,8 @@ def review_qcow2_external_evidence(
             os.close(root_fd)
 
     capture = _decode(capture_raw, required=_CAPTURE_KEYS)
+    if capture_raw != _canonical(capture):
+        raise Qcow2ExternalEvidenceError("Capture manifest must be canonical compact JSON")
     inf = _decode(info_raw, required=_INFO_REQUIRED, optional=_INFO_OPTIONAL)
     check = _decode(check_raw, required=_CHECK_REQUIRED, optional=_CHECK_OPTIONAL)
     if (capture["api_version"] != API_VERSION
