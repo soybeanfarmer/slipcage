@@ -31,6 +31,10 @@ from .vm_overlay_recovery import OverlayRecoveryError, RecoveryClassification, r
 from .vm_local_review_lock import (
     LocalReviewLockError, LocalReviewLockBusy, review_overlay_with_local_lock,
 )
+from .vm_offline_fencing import (
+    FencingJournalError, FencingJournalBusy, OfflineResolution,
+    issue_offline_generation, resolve_offline_generation, inspect_offline_fencing,
+)
 from .vm_supervision import (
     SupervisionError, SupervisionScenario, SupervisionPhase, SupervisionOutcome,
     simulate_supervision, simulate_supervision_pair,
@@ -222,6 +226,34 @@ def build_parser() -> argparse.ArgumentParser:
     locked.add_argument("root", help="Existing trusted private local reservation root")
     locked.add_argument("--json", action="store_true")
 
+    fence_issue = commands.add_parser(
+        "stage-offline-vm-generation",
+        help="Persist numbered NONEXECUTING offline attempt intent in a separate private root",
+    )
+    fence_issue.add_argument("file", help="Validated nonsynthetic SC-12 plan")
+    fence_issue.add_argument("--root", required=True, help="Existing empty trusted private journal root; not VPS")
+    fence_issue.add_argument("--attempt", required=True, help="Unique bounded label")
+    fence_issue.add_argument("--expected-generation", required=True, type=int)
+    fence_issue.add_argument("--json", action="store_true")
+
+    fence_inspect = commands.add_parser(
+        "inspect-offline-vm-generations",
+        help="Read-only verify chained local attempt records under real scoped flock",
+    )
+    fence_inspect.add_argument("root", help="Existing private journal root")
+    fence_inspect.add_argument("--json", action="store_true")
+
+    fence_resolve = commands.add_parser(
+        "resolve-offline-vm-generation",
+        help="Append OFFLINE intent abandonment or permanent quarantine; not real VM cleanup",
+    )
+    fence_resolve.add_argument("root", help="Existing private journal root")
+    fence_resolve.add_argument("--attempt", required=True)
+    fence_resolve.add_argument("--generation", required=True, type=int)
+    fence_resolve.add_argument("--issue-sha256", required=True)
+    fence_resolve.add_argument("--resolution", required=True, choices=[r.value for r in OfflineResolution])
+    fence_resolve.add_argument("--json", action="store_true")
+
     for command in ("run", "compare", "report"):
         commands.add_parser(command, help="Unavailable: always refuses real execution")
     return parser
@@ -237,7 +269,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_NOT_IMPLEMENTED
     try:
-        if args.command == "review-vm-overlay-locked":
+        if args.command == "stage-offline-vm-generation":
+            vm_definition = load_vm_plan(args.file)
+            fencing_snapshot = issue_offline_generation(
+                args.root, vm_definition, args.attempt, args.expected_generation,
+            )
+        elif args.command == "inspect-offline-vm-generations":
+            fencing_snapshot = inspect_offline_fencing(args.root)
+        elif args.command == "resolve-offline-vm-generation":
+            fencing_snapshot = resolve_offline_generation(
+                args.root, args.attempt, args.generation, args.issue_sha256,
+                OfflineResolution(args.resolution),
+            )
+        elif args.command == "review-vm-overlay-locked":
             locked_review = review_overlay_with_local_lock(args.root)
         elif args.command == "review-vm-overlay":
             overlay_review = review_overlay_recovery(args.root)
@@ -328,12 +372,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                     definition, FixtureScenario(args.baseline_scenario),
                     FixtureScenario(args.candidate_scenario), args.output,
                 )
+    except FencingJournalBusy as exc:
+        print(f"slipcage {args.command}: {exc}", file=sys.stderr)
+        return 5
     except LocalReviewLockBusy as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return 5
-    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError) as exc:
+    except (SpecValidationError, FixtureExecutionError, BundleError, DemoError, ReportError, VMPlanError, VMLifecycleError, VMAssetError, VMProvenanceError, VMHostReadinessError, HostObservationError, QemuBlueprintError, SupervisionError, ReservationError, OverlayPreflightError, OverlayRecoveryError, LocalReviewLockError, FencingJournalError) as exc:
         print(f"slipcage {args.command}: {exc}", file=sys.stderr)
         return EXIT_INVALID
+
+    if args.command in (
+        "stage-offline-vm-generation", "inspect-offline-vm-generations",
+        "resolve-offline-vm-generation",
+    ):
+        if args.json:
+            print(fencing_snapshot.canonical_json().decode("ascii"))
+        else:
+            print("DURABLE OFFLINE ATTEMPT LEDGER ONLY; "
+                  f"generation={fencing_snapshot.generation}; state={fencing_snapshot.state}; "
+                  "VM execution_authorized=false")
+        return 5 if fencing_snapshot.state == "unresolved_quarantine" else 0
 
     if args.command == "review-vm-overlay-locked":
         if args.json:
