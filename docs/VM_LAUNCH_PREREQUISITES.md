@@ -52,3 +52,7 @@ The 21 new SC-13b12 tests use only tiny fake QCOW2-header data, fabricated OS/ke
 The necessary real prerequisites remain in [Issue #23](https://github.com/soybeanfarmer/slipcage/issues/23) (authentic software pins, current owner-approved provider/host/KVM evidence) and [Issue #25](https://github.com/soybeanfarmer/slipcage/issues/25) (actual OS-backed host-global lease, private bounded overlay/immutable base, pidfd/group-aware supervision, isolation, safe crash reconciliation and an explicitly owner-approved benign guest test). Any release, merge, VPS operations and VM boot remain separate human-controlled actions.
 
 **No release, remote call, VPS inspection, SSH, deployment, image creation, network change, subprocess, or QEMU launch is made by this PR.**
+
+## SC-13b13 — Additional local key pin consistency, never publisher authentication
+
+The dossier may now accept an **optional** `--key-policy /private/policy.json`, validated as detailed in [SC-13b13](VM_SIGNING_KEY_POLICY.md). This policy links a caller-supplied public-key SHA-256 fingerprint, the exact release, signed-statement and plan digests, and a bounded declared revoked-key list. It must fail closed on wrong or listed-revoked keys. A matched caller-supplied policy **is not trusted publisher identity or complete upstream revocation evidence**. With or without the policy the dossier is always execution-blocked (CLI 5); no vendor-authenticated keys were introduced in the repository.

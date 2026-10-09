@@ -100,6 +100,10 @@ from .vm_launch_dossier import (
     review_vm_launch_prerequisites,
 )
 
+from .vm_key_policy import (
+    VMKeyPolicyError, SigningKeyPolicyCheck, verify_vm_signing_key_policy,
+)
+
 __all__ = [
     "ExperimentSpec", "SpecValidationError", "load_spec", "validate_spec_bytes",
     "AssertionOutcome", "AssertionResult", "ExpectedDecision", "Observation",
@@ -145,4 +149,5 @@ __all__ = [
     "step_fake_process", "simulate_fake_supervision",
     "LaunchDossierError", "VMLaunchPrerequisiteDossier",
     "review_vm_launch_prerequisites",
+    "VMKeyPolicyError", "SigningKeyPolicyCheck", "verify_vm_signing_key_policy",
 ]

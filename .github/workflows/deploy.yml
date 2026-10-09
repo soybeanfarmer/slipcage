@@ -219,6 +219,9 @@ jobs:
           python -m unittest discover -s tests -p 'test_vm_process_supervisor.py' -q
           # SC-13b12 eight-input offline prerequisites, intentionally ALWAYS blocked; no guest.
           python -m unittest discover -s tests -p 'test_vm_launch_dossier.py' -q
+          # SC-13b13 ephemeral Ed25519 keys and private local policy fixtures only.
+          # No upstream trust assertion, release, guest VM, or production host changes.
+          python -m unittest discover -s tests -p 'test_vm_key_policy.py' -q
           python -m unittest discover -s tests -v
           python -m compileall -q app scripts src tests
           bash -n scripts/*.sh
